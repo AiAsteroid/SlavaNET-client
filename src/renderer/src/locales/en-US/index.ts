@@ -157,13 +157,16 @@ export default {
   pages: {
     home: {
       connectTitle: 'No subscription yet',
-      connectDescription:
-        'Press the button — Telegram opens, you confirm, and the subscription is added for you.',
+      connectDescription: 'Sign in to your account and the subscription is added for you.',
       connectButton: 'Add subscription',
       connectRequesting: 'Preparing sign-in',
       connectWaiting: 'Confirm the sign-in in Telegram',
       connectWaitingHint: 'Telegram is open. Tap “Yes, sign in” there and come back.',
       connectOpenTelegram: 'Open Telegram again',
+      connectWaitingSite: 'Confirm the sign-in on the website',
+      connectWaitingSiteHint: 'The website is open in your browser. Press “Confirm” there and come back.',
+      connectOpenSite: 'Open the website again',
+      connectCodeLabel: 'Check this code matches the website',
       connectFetching: 'Fetching the subscription',
       connectImporting: 'Adding the subscription',
       connectFailed: 'Could not add the subscription',
@@ -400,6 +403,18 @@ export default {
       serviceRestartSuccess: 'Service restart successful',
       serviceStopSuccess: 'Service stop successful'
     }
+  },
+
+  subscription: {
+    loginTitle: 'Sign in to SlavaNET',
+    loginDescription: 'Sign in and the subscription is added for you',
+    email: 'E-mail',
+    password: 'Password',
+    signIn: 'Sign in',
+    forgotPassword: 'Forgot your password?',
+    or: 'or',
+    signInWebsite: 'Sign in through the website',
+    signInTelegram: 'Sign in with Telegram'
   },
 
   languages: {

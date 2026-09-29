@@ -22,8 +22,8 @@ import {
 import {
   mainWindow,
   setNotQuitDialog,
+  openSubscriptionEntry,
   showMainWindow,
-  startSubscriptionConnect,
   triggerMainWindow
 } from '..'
 import { safeSend } from '../utils/safeSend'
@@ -327,10 +327,7 @@ export const buildContextMenu = async (): Promise<Menu> => {
           type: 'normal' as const,
           label: t('tray.addSubscription'),
           click: async (): Promise<void> => {
-            // Order matters: progress is only delivered to the main window, so
-            // it has to exist before the round trip starts.
-            await showMainWindow()
-            void startSubscriptionConnect()
+            await openSubscriptionEntry()
           }
         }
       : {
@@ -355,8 +352,7 @@ export const buildContextMenu = async (): Promise<Menu> => {
               type: 'normal' as const,
               label: t('tray.addSubscription'),
               click: async (): Promise<void> => {
-                await showMainWindow()
-                void startSubscriptionConnect()
+                await openSubscriptionEntry()
               }
             }
           ]

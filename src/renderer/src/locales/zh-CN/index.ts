@@ -232,12 +232,16 @@ export default {
   pages: {
     home: {
       connectTitle: '尚未添加订阅',
-      connectDescription: '点击按钮，Telegram 会打开，确认后订阅将自动添加。',
+      connectDescription: '登录账户后，订阅将自动添加。',
       connectButton: '添加订阅',
       connectRequesting: '正在准备登录',
       connectWaiting: '请在 Telegram 中确认登录',
       connectWaitingHint: 'Telegram 已打开。请点击「是，登录」后返回。',
       connectOpenTelegram: '再次打开 Telegram',
+      connectWaitingSite: '请在网站上确认登录',
+      connectWaitingSiteHint: '网站已在浏览器中打开。请点击「确认」后返回。',
+      connectOpenSite: '再次打开网站',
+      connectCodeLabel: '请核对网站上的验证码',
       connectFetching: '正在获取订阅',
       connectImporting: '正在添加订阅',
       connectFailed: '无法添加订阅',
@@ -465,6 +469,18 @@ export default {
       serviceRestartSuccess: '服务重启成功',
       serviceStopSuccess: '服务停止成功'
     }
+  },
+
+  subscription: {
+    loginTitle: '登录 SlavaNET',
+    loginDescription: '登录后订阅将自动添加',
+    email: '邮箱',
+    password: '密码',
+    signIn: '登录',
+    forgotPassword: '忘记密码？',
+    or: '或',
+    signInWebsite: '通过网站登录',
+    signInTelegram: '通过 Telegram 登录'
   },
 
   languages: {

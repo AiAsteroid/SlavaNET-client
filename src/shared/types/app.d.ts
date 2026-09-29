@@ -147,9 +147,19 @@ interface SubscriptionUserInfo {
 
 type ConnectStatus = 'requesting' | 'waiting' | 'fetching' | 'importing' | 'done' | 'failed'
 
+// Where the person is sent to confirm the sign-in. Both routes use the same
+// one-time token and the same poll; only the destination differs.
+type ConnectRoute = 'telegram' | 'website'
+
 interface ConnectStatusEvent {
   status: ConnectStatus
   message?: string
-  // Telegram link, so the screen can offer it again if the browser swallowed it
+  // Confirmation link, so the screen can offer it again if the browser or
+  // Telegram swallowed it
   link?: string
+  via?: ConnectRoute
+  // First 8 characters of the request token. The confirmation page shows the
+  // same ones, so the person can tell their own request from a token somebody
+  // else pushed at them.
+  code?: string
 }

@@ -23,7 +23,12 @@ import {
   restartMihomoConnections
 } from '../core/mihomoApi'
 import { checkAutoRun, disableAutoRun, enableAutoRun } from '../sys/autoRun'
-import { cancelSubscriptionConnect, getPendingSubscriptionConnect } from '../resolve/connect'
+import {
+  cancelSubscriptionConnect,
+  getPendingSubscriptionConnect,
+  hasCabinetSession,
+  signOutOfCabinet
+} from '../resolve/connect'
 import {
   getAppConfig,
   patchAppConfig,
@@ -96,7 +101,9 @@ import {
   setNotQuitDialog,
   showError,
   showMainWindow,
+  startEmailLogin,
   startSubscriptionConnect,
+  startWebsiteLogin,
   triggerMainWindow
 } from '..'
 import {
@@ -241,6 +248,14 @@ export function registerIpcMainHandlers(): void {
   ipcMain.handle('startSubscriptionConnect', () => {
     void startSubscriptionConnect()
   })
+  ipcMain.handle('startWebsiteLogin', () => {
+    void startWebsiteLogin()
+  })
+  ipcMain.handle('startEmailLogin', (_e, email: string, password: string) => {
+    void startEmailLogin(email, password)
+  })
+  ipcMain.handle('hasCabinetSession', () => hasCabinetSession())
+  ipcMain.handle('signOutOfCabinet', () => signOutOfCabinet())
   ipcMain.handle('cancelSubscriptionConnect', () => cancelSubscriptionConnect())
   ipcMain.handle('getPendingSubscriptionConnect', () => getPendingSubscriptionConnect())
   ipcMain.handle('cancelUpdate', ipcErrorWrapper(cancelUpdate))

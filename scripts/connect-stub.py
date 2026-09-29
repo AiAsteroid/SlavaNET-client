@@ -1,6 +1,6 @@
 import http.server, socketserver, json
 
-state = {"scenario": "happy", "polls": 0, "hits": 0}
+state = {"scenario": "happy", "polls": 0, "hits": 0, "rotated": 0, "rotate_seen": []}
 
 SUB_OK = {"has_subscription": True, "subscription": {
     "subscription_url": "https://sub.example.invalid/abc", "is_active": True,
@@ -25,6 +25,22 @@ class H(http.server.BaseHTTPRequestHandler):
         if self.path == "/__scenario":
             state["scenario"] = json.loads(body)["scenario"]; state["polls"] = 0
             return self.reply(200, {"ok": True})
+        if self.path.endswith("/auth/refresh"):
+            d = json.loads(body or b"{}")
+            # rotate=true must come back with a NEW refresh token; without the
+            # flag the answer is byte-identical to the old behaviour.
+            state["rotate_seen"].append(bool(d.get("rotate")))
+            if d.get("rotate") is True:
+                state["rotated"] += 1
+                return self.reply(200, {"access_token": "acc", "expires_in": 900,
+                                        "refresh_token": "ref%d" % (state["rotated"] + 1)})
+            return self.reply(200, {"access_token": "acc", "expires_in": 900})
+        # Called by the confirmation page in the browser, never by the client.
+        # Here only so the stub answers the same set of routes as the cabinet.
+        if self.path.endswith("/deeplink/link"):
+            if json.loads(body or b"{}").get("token") != "t" * 32:
+                return self.reply(410, {"detail": "Token expired, invalid or already used"})
+            return self.reply(200, {"status": "linked"})
         if self.path.endswith("/deeplink/request"):
             if sc == "req_429":
                 return self.reply(429, {"detail": "Too many requests"}, {"Retry-After": "60"})
@@ -35,6 +51,13 @@ class H(http.server.BaseHTTPRequestHandler):
         if self.path.endswith("/deeplink/poll"):
             state["polls"] += 1; p = state["polls"]
             if sc == "timeout": return self.reply(202, {"detail": "Waiting for confirmation"})
+            if sc == "poll_netdrop" and p <= 2:
+                # Connection dies with no answer: the client must keep polling
+                # rather than fail a login the person may already have confirmed.
+                self.close_connection = True
+                try: self.connection.close()
+                except Exception: pass
+                return
             if sc == "poll_gone": return self.reply(410, {"detail": "Token expired or not found"})
             if sc == "poll_forbidden": return self.reply(403, {"detail": "Account is deactivated"})
             if sc == "poll_422_array":
@@ -52,6 +75,11 @@ class H(http.server.BaseHTTPRequestHandler):
     def do_GET(self):
         sc = state["scenario"]
         state["hits"] += 1
+        if self.path.startswith("/connect-app"):
+            tok = self.path.split("token=")[-1] if "token=" in self.path else ""
+            page = ("<!doctype html><meta charset=utf-8><h1>Подтверждение входа</h1>"
+                    "<p>Код запроса: <b>%s</b></p>" % tok[:8])
+            return self.reply(200, None, raw=page.encode())
         if self.path.endswith("/cabinet/subscription"):
             if sc == "no_sub": return self.reply(200, {"has_subscription": False, "subscription": None})
             if sc == "revoked":
@@ -66,6 +94,12 @@ class H(http.server.BaseHTTPRequestHandler):
 
     def log_message(self, *a): pass
 
-socketserver.TCPServer.allow_reuse_address = True
-with socketserver.TCPServer(("127.0.0.1", 8899), H) as s:
+# Threaded on purpose: with the website route a browser sits on the
+# confirmation page, and a single-threaded server makes the client's polls
+# queue behind it until they time out.
+class Server(socketserver.ThreadingTCPServer):
+    allow_reuse_address = True
+    daemon_threads = True
+
+with Server(("127.0.0.1", 8899), H) as s:
     print("cabinet stub up", flush=True); s.serve_forever()

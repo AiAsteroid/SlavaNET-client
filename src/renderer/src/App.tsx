@@ -29,6 +29,8 @@ import { attachTrafficStore } from '@renderer/store/traffic-store'
 import { attachLogsStore } from '@renderer/store/logs-store'
 import { attachUpdaterStore } from '@renderer/store/updater-store'
 import { attachCoreLifecycleStore } from '@renderer/store/core-lifecycle-store'
+import { attachLoginStore, useLoginStore } from '@renderer/store/login-store'
+import CabinetLoginModal from '@renderer/components/profiles/cabinet-login-modal'
 
 let navigate: NavigateFunction
 
@@ -64,12 +66,14 @@ const App: React.FC = () => {
     const detachLogs = attachLogsStore()
     const detachUpdater = attachUpdaterStore()
     const detachCoreLifecycle = attachCoreLifecycleStore()
+    const detachLogin = attachLoginStore()
     return (): void => {
       detachConnections()
       detachTraffic()
       detachLogs()
       detachUpdater()
       detachCoreLifecycle()
+      detachLogin()
     }
   }, [])
 
@@ -95,6 +99,11 @@ const App: React.FC = () => {
   useEffect(() => {
     applyTheme(customTheme || 'default.css')
   }, [customTheme])
+
+  // Lives at the top so a slavanet://connect link from the website can open it
+  // no matter which screen the person happens to be on.
+  const loginOpen = useLoginStore((s) => s.open)
+  const setLoginOpen = useLoginStore((s) => s.setOpen)
 
   const [showQuitConfirm, setShowQuitConfirm] = useState(false)
   const [showProfileInstallConfirm, setShowProfileInstallConfirm] = useState(false)
@@ -252,6 +261,7 @@ const App: React.FC = () => {
           className="guide-admin-required-modal"
         />
       )}
+      {loginOpen && <CabinetLoginModal onClose={() => setLoginOpen(false)} />}
       <HwidLimitAlert />
       {platform === 'darwin' && (
         <div className="fixed top-0.5 -left-1 h-14.25 flex items-center pl-3 z-100 app-drag">

@@ -4,8 +4,9 @@ import BasePage from '@renderer/components/base/base-page'
 import ProfileItem from '@renderer/components/profiles/profile-item'
 import EditInfoModal from '@renderer/components/profiles/edit-info-modal'
 import SubscriptionEmptyState from '@renderer/components/profiles/subscription-empty-state'
+import { useLoginStore } from '@renderer/store/login-store'
 import { useProfileConfig } from '@renderer/hooks/use-profile-config'
-import { readTextFile, startSubscriptionConnect } from '@renderer/utils/ipc'
+import { readTextFile } from '@renderer/utils/ipc'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -44,6 +45,7 @@ const Profiles: React.FC = () => {
   const [switching, setSwitching] = useState(false)
   const [fileOver, setFileOver] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
+  const openLogin = useLoginStore((s) => s.setOpen)
   const [editingItem, setEditingItem] = useState<ProfileItem | null>(null)
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -202,7 +204,7 @@ const Profiles: React.FC = () => {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => startSubscriptionConnect()}>
+              <DropdownMenuItem onClick={() => openLogin(true)}>
                 {t('pages.home.connectButton')}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={handleAddProfile}>

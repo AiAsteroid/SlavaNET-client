@@ -324,6 +324,24 @@ export async function startSubscriptionConnect(): Promise<void> {
   return ipcErrorWrapper(await window.electron.ipcRenderer.invoke('startSubscriptionConnect'))
 }
 
+export async function startWebsiteLogin(): Promise<void> {
+  return ipcErrorWrapper(await window.electron.ipcRenderer.invoke('startWebsiteLogin'))
+}
+
+export async function startEmailLogin(email: string, password: string): Promise<void> {
+  return ipcErrorWrapper(
+    await window.electron.ipcRenderer.invoke('startEmailLogin', email, password)
+  )
+}
+
+export async function hasCabinetSession(): Promise<boolean> {
+  return ipcErrorWrapper(await window.electron.ipcRenderer.invoke('hasCabinetSession'))
+}
+
+export async function signOutOfCabinet(): Promise<void> {
+  return ipcErrorWrapper(await window.electron.ipcRenderer.invoke('signOutOfCabinet'))
+}
+
 export async function cancelSubscriptionConnect(): Promise<void> {
   return ipcErrorWrapper(await window.electron.ipcRenderer.invoke('cancelSubscriptionConnect'))
 }

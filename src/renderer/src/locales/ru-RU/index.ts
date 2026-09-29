@@ -158,12 +158,16 @@ export default {
   pages: {
     home: {
       connectTitle: 'Подписка не подключена',
-      connectDescription: 'Нажмите кнопку — откроется Telegram, подтвердите вход, и подписка добавится сама.',
+      connectDescription: 'Войдите в аккаунт — подписка добавится сама.',
       connectButton: 'Добавить подписку',
       connectRequesting: 'Готовим вход',
       connectWaiting: 'Подтвердите вход в Telegram',
       connectWaitingHint: 'Мы открыли Telegram. Нажмите там «Да, войти» — и возвращайтесь.',
       connectOpenTelegram: 'Открыть Telegram ещё раз',
+      connectWaitingSite: 'Подтвердите вход на сайте',
+      connectWaitingSiteHint: 'Мы открыли сайт в браузере. Нажмите там «Подтвердить» — и возвращайтесь.',
+      connectOpenSite: 'Открыть сайт ещё раз',
+      connectCodeLabel: 'Сверьте код с сайтом',
       connectFetching: 'Получаем подписку',
       connectImporting: 'Добавляем подписку',
       connectFailed: 'Не удалось добавить подписку',
@@ -401,6 +405,18 @@ export default {
       serviceRestartSuccess: 'Служба успешно перезапущена',
       serviceStopSuccess: 'Служба успешно остановлена'
     }
+  },
+
+  subscription: {
+    loginTitle: 'Вход в SlavaNET',
+    loginDescription: 'Войдите в аккаунт — подписка добавится сама',
+    email: 'Почта',
+    password: 'Пароль',
+    signIn: 'Войти',
+    forgotPassword: 'Забыли пароль?',
+    or: 'или',
+    signInWebsite: 'Войти через сайт',
+    signInTelegram: 'Войти через Telegram'
   },
 
   languages: {

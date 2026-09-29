@@ -18,7 +18,13 @@ import { existsSync, writeFileSync } from 'fs'
 import { exePath, taskDir } from './utils/dirs'
 import { showFloatingWindow } from './resolve/floatingWindow'
 import { safeSend } from './utils/safeSend'
-import { getPendingSubscriptionConnect, runSubscriptionConnect } from './resolve/connect'
+import {
+  getPendingSubscriptionConnect,
+  hasCabinetSession,
+  runEmailLogin,
+  runSubscriptionConnect,
+  runSubscriptionFromSession
+} from './resolve/connect'
 import { getAppConfigSync } from './config/app'
 import { declineElevation, ELEVATION_DECLINED_ARG } from './utils/elevation'
 import { t } from './utils/i18n'
@@ -381,23 +387,65 @@ function sendConnectStatus(progress: ConnectStatusEvent): void {
   safeSend(mainWindow, 'subscription-connect-status', progress)
 }
 
-// Drives the whole cabinet round trip and imports what comes back. Errors are
-// reported on the card the user is already looking at, not only in a dialog.
-export async function startSubscriptionConnect(): Promise<void> {
+// Both ways of signing in end the same way: fetch the subscription and import
+// it, reporting every step on the card the person is already looking at.
+async function runAndImport(
+  run: (report: (progress: ConnectStatusEvent) => void) => Promise<{ url: string; name?: string }>
+): Promise<void> {
   const pending = getPendingSubscriptionConnect()
   if (pending) {
-    // Already waiting on the person in Telegram. Show where it stands instead
-    // of starting a second round trip and calling the first one a failure.
+    // Already in progress. Show where it stands instead of starting a second
+    // round trip and calling the first one a failure.
     sendConnectStatus(pending)
     return
   }
   try {
-    const { url, name } = await runSubscriptionConnect(sendConnectStatus)
+    const { url, name } = await run(sendConnectStatus)
     sendConnectStatus({ status: 'importing' })
     await importSubscription(url, name)
   } catch (e) {
     sendConnectStatus({ status: 'failed', message: e instanceof Error ? e.message : `${e}` })
   }
+}
+
+// Returns false when the stored session no longer works, so the caller can
+// ask the person to sign in instead of reporting a dead end.
+async function importFromSession(): Promise<boolean> {
+  try {
+    const { url, name } = await runSubscriptionFromSession(sendConnectStatus)
+    sendConnectStatus({ status: 'importing' })
+    await importSubscription(url, name)
+    return true
+  } catch {
+    return false
+  }
+}
+
+// The single door into "add a subscription", used by the website link and by
+// the tray. Someone who signed in before gets the subscription without typing
+// anything; everyone else gets the sign-in dialog.
+export async function openSubscriptionEntry(): Promise<void> {
+  await showMainWindow()
+  if (hasCabinetSession() && (await importFromSession())) {
+    return
+  }
+  // No session, or the stored one is dead — ask to sign in rather than report
+  // a dead end the person can do nothing about.
+  safeSend(mainWindow, 'open-subscription-login')
+}
+
+export async function startSubscriptionConnect(): Promise<void> {
+  await runAndImport((report) => runSubscriptionConnect(report, 'telegram'))
+}
+
+// Signing in through the browser the person is already signed into. Same token
+// and same poll as the Telegram route — only the page they confirm on differs.
+export async function startWebsiteLogin(): Promise<void> {
+  await runAndImport((report) => runSubscriptionConnect(report, 'website'))
+}
+
+export async function startEmailLogin(email: string, password: string): Promise<void> {
+  await runAndImport((report) => runEmailLogin(email, password, report))
 }
 
 // Shared by both deep link hosts. Reports the HWID limit through its own screen
@@ -440,6 +488,13 @@ async function handleDeepLink(url: string): Promise<void> {
   const urlObj = new URL(url)
 
   switch (urlObj.host) {
+    // The website only wakes the app: no subscription link travels through the
+    // browser, the address bar or its history. The client fetches it itself,
+    // with the session it already has or after a sign-in.
+    case 'connect': {
+      await openSubscriptionEntry()
+      break
+    }
     // Links handed to the user elsewhere — the subscription page, support —
     // so the source is unverified and the import is always confirmed first.
     case 'install-config': {
