@@ -59,16 +59,16 @@ export function themesDir(): string {
 
 export function mihomoIpcPath(): string {
   if (process.platform === 'win32') {
-    return '\\\\.\\pipe\\Koala-Clash\\mihomo'
+    return '\\\\.\\pipe\\SlavaNET\\mihomo'
   }
   const { core = 'mihomo' } = getAppConfigSync()
   if (core === 'system') {
-    return '/tmp/koala-clash-mihomo-external.sock'
+    return '/tmp/slavanet-mihomo-external.sock'
   }
   if (!checkCorePermissionSync(core as 'mihomo' | 'mihomo-alpha')) {
-    return '/tmp/koala-clash-mihomo-api-noperm.sock'
+    return '/tmp/slavanet-mihomo-api-noperm.sock'
   }
-  return '/tmp/koala-clash-mihomo-api.sock'
+  return '/tmp/slavanet-mihomo-api.sock'
 }
 
 export function serviceIpcPath(): string {

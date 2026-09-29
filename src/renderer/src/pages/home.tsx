@@ -4,7 +4,13 @@ import { useAppConfig } from '@renderer/hooks/use-app-config'
 import { useControledMihomoConfig } from '@renderer/hooks/use-controled-mihomo-config'
 import { useProfileConfig } from '@renderer/hooks/use-profile-config'
 import { useGroups } from '@renderer/hooks/use-groups'
-import { triggerSysProxy, updateTrayIcon, mihomoHotReloadConfig } from '@renderer/utils/ipc'
+import {
+  triggerSysProxy,
+  updateTrayIcon,
+  mihomoHotReloadConfig,
+  startSubscriptionConnect,
+  cancelSubscriptionConnect
+} from '@renderer/utils/ipc'
 import { useTranslation } from 'react-i18next'
 import { memo, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -21,7 +27,8 @@ import {
   ArrowDown,
   RefreshCcw,
   CalendarClock,
-  CreditCard
+  CreditCard,
+  AlertCircle
 } from 'lucide-react'
 import { SiTelegram } from 'react-icons/si'
 import EditInfoModal from '@renderer/components/profiles/edit-info-modal'
@@ -111,6 +118,42 @@ const Home: React.FC = () => {
     }
     setEditingItem(newProfile)
     setShowEditModal(true)
+  }
+
+  // One-click flow: the main process opens the cabinet in the browser and
+  // reports back over 'subscription-connect-status'. There is deliberately no
+  // timeout here — the waiting card always offers Cancel and the manual link,
+  // so the user is never stuck waiting on us.
+  const [connectStatus, setConnectStatus] = useState<ConnectStatus | null>(null)
+  const [connectError, setConnectError] = useState<string | null>(null)
+  const connectBusy =
+    connectStatus === 'opening' || connectStatus === 'redeeming' || connectStatus === 'importing'
+
+  useEffect(() => {
+    return window.electron.ipcRenderer.on(
+      'subscription-connect-status',
+      (_event, payload: ConnectStatusEvent) => {
+        setConnectStatus(payload.status)
+        setConnectError(payload.status === 'failed' ? (payload.message ?? null) : null)
+      }
+    )
+  }, [])
+
+  const handleConnect = async (): Promise<void> => {
+    setConnectError(null)
+    setConnectStatus('opening')
+    try {
+      await startSubscriptionConnect()
+    } catch (e) {
+      setConnectStatus('failed')
+      setConnectError(`${e}`)
+    }
+  }
+
+  const handleCancelConnect = async (): Promise<void> => {
+    await cancelSubscriptionConnect()
+    setConnectStatus(null)
+    setConnectError(null)
   }
 
   const trafficInfo = useTrafficStore((s) => s.traffic)
@@ -263,19 +306,67 @@ const Home: React.FC = () => {
       {!hasProfiles ? (
         <div className="h-full w-full flex items-center justify-center">
           <div className="flex flex-col items-center gap-4 max-w-75 rounded-2xl border border-stroke bg-card/50 backdrop-blur-xl p-8">
-            <WifiOff className="size-16 text-muted-foreground" />
-            <h2 className="text-xl font-bold text-foreground">{t('pages.profiles.emptyTitle')}</h2>
-            <p className="text-sm font-medium text-muted-foreground text-center">
-              {t('pages.profiles.emptyDescription')}
-            </p>
-            <button
-              onClick={handleAddProfile}
-              data-guide="home-add-profile-btn"
-              className="flex items-center gap-2 rounded-xl border border-stroke bg-gradient-start-power-on/50 backdrop-blur-xl px-6 py-3 text-foreground hover:bg-gradient-start-power-on/40 transition-colors"
-            >
-              <PlusCircle className="size-5" />
-              <span className="text-sm font-medium">{t('pages.profiles.addProfile')}</span>
-            </button>
+            {connectBusy ? (
+              <>
+                <Spinner className="size-16 text-muted-foreground" />
+                <h2 className="text-xl font-bold text-foreground">
+                  {connectStatus === 'opening'
+                    ? t('pages.home.connectWaiting')
+                    : connectStatus === 'redeeming'
+                      ? t('pages.home.connectRedeeming')
+                      : t('pages.home.connectImporting')}
+                </h2>
+                {connectStatus === 'opening' && (
+                  <p className="text-sm font-medium text-muted-foreground text-center">
+                    {t('pages.home.connectWaitingHint')}
+                  </p>
+                )}
+                <button
+                  onClick={handleCancelConnect}
+                  className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  {t('common.cancel')}
+                </button>
+              </>
+            ) : (
+              <>
+                {connectStatus === 'failed' ? (
+                  <AlertCircle className="size-16 text-destructive" />
+                ) : (
+                  <WifiOff className="size-16 text-muted-foreground" />
+                )}
+                <h2 className="text-xl font-bold text-foreground">
+                  {connectStatus === 'failed'
+                    ? t('pages.home.connectFailed')
+                    : t('pages.home.connectTitle')}
+                </h2>
+                <p className="text-sm font-medium text-muted-foreground text-center text-balance">
+                  {connectStatus === 'failed' && connectError
+                    ? connectError
+                    : t('pages.home.connectDescription')}
+                </p>
+                <button
+                  onClick={handleConnect}
+                  data-guide="home-add-profile-btn"
+                  className="flex items-center gap-2 rounded-xl border border-stroke bg-gradient-start-power-on/50 backdrop-blur-xl px-6 py-3 text-foreground hover:bg-gradient-start-power-on/40 transition-colors"
+                >
+                  <PlusCircle className="size-5" />
+                  <span className="text-sm font-medium">
+                    {connectStatus === 'failed'
+                      ? t('pages.home.connectRetry')
+                      : t('pages.home.connectButton')}
+                  </span>
+                </button>
+                {/* Escape hatch: no cabinet session in the default browser, a
+                    link handed over by support, or an unregistered scheme. */}
+                <button
+                  onClick={handleAddProfile}
+                  className="text-xs text-muted-foreground hover:text-foreground transition-colors underline underline-offset-2"
+                >
+                  {t('pages.home.connectManual')}
+                </button>
+              </>
+            )}
           </div>
           {showEditModal && editingItem && (
             <EditInfoModal

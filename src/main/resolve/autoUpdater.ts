@@ -15,9 +15,30 @@ import { t } from '../utils/i18n'
 
 let downloadCancelToken: CancelTokenSource | null = null
 
+// Upstream compared versions with !==, which reports an update whenever the
+// remote version merely differs — including when it is older than ours. That
+// is how a fork ends up installing somebody else's build over itself.
+function isNewerVersion(remote: string, current: string): boolean {
+  const parse = (v: string): number[] =>
+    v
+      .trim()
+      .replace(/^v/, '')
+      .split('-')[0]
+      .split('.')
+      .map((n) => parseInt(n, 10) || 0)
+  const a = parse(remote)
+  const b = parse(current)
+  for (let i = 0; i < Math.max(a.length, b.length); i++) {
+    const x = a[i] ?? 0
+    const y = b[i] ?? 0
+    if (x !== y) return x > y
+  }
+  return false
+}
+
 export async function checkUpdate(): Promise<AppVersion | undefined> {
   const { 'mixed-port': mixedPort = 0 } = (await getRuntimeConfig()) ?? {}
-  const url = 'https://github.com/coolcoala/koala-clash/releases/latest/download/latest.yml'
+  const url = 'https://github.com/AiAsteroid/SlavaNET-client/releases/latest/download/latest.yml'
   const res = await axios.get(url, {
     headers: { 'Content-Type': 'application/octet-stream' },
     ...(mixedPort != 0 && {
@@ -31,7 +52,7 @@ export async function checkUpdate(): Promise<AppVersion | undefined> {
   })
   const latest = parseYaml<AppVersion>(res.data)
   const currentVersion = app.getVersion()
-  if (latest.version !== currentVersion) {
+  if (isNewerVersion(latest.version, currentVersion)) {
     return latest
   } else {
     return undefined
@@ -41,12 +62,12 @@ export async function checkUpdate(): Promise<AppVersion | undefined> {
 export async function downloadAndInstallUpdate(version: string): Promise<void> {
   const { 'mixed-port': mixedPort = 0 } = (await getRuntimeConfig()) ?? {}
   const releaseTag = version
-  const baseUrl = `https://github.com/coolcoala/koala-clash/releases/download/${releaseTag}/`
+  const baseUrl = `https://github.com/AiAsteroid/SlavaNET-client/releases/download/${releaseTag}/`
   const fileMap = {
-    'win32-x64': `Koala.Clash_x64-setup.exe`,
-    'win32-arm64': `Koala.Clash_arm64-setup.exe`,
-    'darwin-x64': `Koala.Clash_x64.pkg`,
-    'darwin-arm64': `Koala.Clash_arm64.pkg`
+    'win32-x64': `SlavaNET_x64-setup.exe`,
+    'win32-arm64': `SlavaNET_arm64-setup.exe`,
+    'darwin-x64': `SlavaNET_x64.pkg`,
+    'darwin-arm64': `SlavaNET_arm64.pkg`
   }
   let file = fileMap[`${process.platform}-${process.arch}`]
   if (isPortable()) {
@@ -57,7 +78,7 @@ export async function downloadAndInstallUpdate(version: string): Promise<void> {
   }
   downloadCancelToken = axios.CancelToken.source()
 
-  const apiUrl = `https://api.github.com/repos/coolcoala/koala-clash/releases/tags/${releaseTag}`
+  const apiUrl = `https://api.github.com/repos/AiAsteroid/SlavaNET-client/releases/tags/${releaseTag}`
   const apiRequestConfig: AxiosRequestConfig = {
     headers: { Accept: 'application/vnd.github.v3+json' },
     ...(mixedPort != 0 && {

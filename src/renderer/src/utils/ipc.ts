@@ -320,6 +320,18 @@ export async function checkUpdate(): Promise<AppVersion | undefined> {
   return ipcErrorWrapper(await window.electron.ipcRenderer.invoke('checkUpdate'))
 }
 
+export async function startSubscriptionConnect(): Promise<void> {
+  return ipcErrorWrapper(await window.electron.ipcRenderer.invoke('startSubscriptionConnect'))
+}
+
+export async function cancelSubscriptionConnect(): Promise<void> {
+  return ipcErrorWrapper(await window.electron.ipcRenderer.invoke('cancelSubscriptionConnect'))
+}
+
+export async function hasPendingSubscriptionConnect(): Promise<boolean> {
+  return ipcErrorWrapper(await window.electron.ipcRenderer.invoke('hasPendingSubscriptionConnect'))
+}
+
 export async function downloadAndInstallUpdate(version: string): Promise<void> {
   return ipcErrorWrapper(
     await window.electron.ipcRenderer.invoke('downloadAndInstallUpdate', version)

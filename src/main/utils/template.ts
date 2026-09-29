@@ -28,7 +28,10 @@ export const defaultConfig: AppConfig = {
   groupDisplayLayout: 'double',
   autoLightweightMode: 'core',
   mainSwitchMode: 'tun',
-  useHotReloadProfile: true
+  useHotReloadProfile: true,
+  // Disabled on purpose — see the comment in App.tsx. Set to true to bring the
+  // onboarding tour back without touching code.
+  showTour: false
 }
 
 export const defaultControledMihomoConfig: Partial<MihomoConfig> = {

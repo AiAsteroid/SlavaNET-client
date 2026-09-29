@@ -17,6 +17,8 @@ import { initProfileUpdater } from './core/profileUpdater'
 import { existsSync, writeFileSync } from 'fs'
 import { exePath, taskDir } from './utils/dirs'
 import { showFloatingWindow } from './resolve/floatingWindow'
+import { safeSend } from './utils/safeSend'
+import { connectErrorMessage, consumePendingState, redeemTicket } from './resolve/connect'
 import { getAppConfigSync } from './config/app'
 import { declineElevation, ELEVATION_DECLINED_ARG } from './utils/elevation'
 import { t } from './utils/i18n'
@@ -152,11 +154,15 @@ if (syncConfig.disableGPU) {
   app.disableHardwareAcceleration()
 }
 
+// Kept next to handleDeepLink so a new scheme only has to be added once.
+const DEEPLINK_PREFIXES = ['slavanet://']
+
+function isDeepLink(arg: string): boolean {
+  return DEEPLINK_PREFIXES.some((prefix) => arg.startsWith(prefix))
+}
+
 function getDeepLinkFromArgs(argv: string[]): string | undefined {
-  return argv.find(
-    (arg) =>
-      arg.startsWith('clash://') || arg.startsWith('mihomo://') || arg.startsWith('koala-clash://')
-  )
+  return argv.find(isDeepLink)
 }
 
 app.on('second-instance', async (_event, commandline) => {
@@ -288,7 +294,7 @@ powerMonitor.on('shutdown', async () => {
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(async () => {
   // Set app user model id for windows
-  electronApp.setAppUserModelId('koala-clash.app')
+  electronApp.setAppUserModelId('org.slavanet.client')
   try {
     await initPromise
   } catch (e) {
@@ -371,42 +377,92 @@ app.whenReady().then(async () => {
   })
 })
 
+function sendConnectStatus(status: ConnectStatus, message?: string): void {
+  safeSend(mainWindow, 'subscription-connect-status', { status, message })
+}
+
+// Shared by both deep link hosts. Reports the HWID limit through its own screen
+// because that case is actionable by the user, unlike a generic failure.
+async function importSubscription(
+  profileUrl: string,
+  profileName?: string | null,
+  sourceUrl?: string
+): Promise<void> {
+  try {
+    await addProfileItem({
+      type: 'remote',
+      name: profileName ?? undefined,
+      url: profileUrl
+    })
+    safeSend(mainWindow, 'profileConfigUpdated')
+    new Notification({ title: t('notification.profileImportSuccess') }).show()
+    sendConnectStatus('done')
+  } catch (e) {
+    const hwidLimitMatch = `${e}`.match(/HWID_LIMIT:(.*)/)
+    if (hwidLimitMatch) {
+      sendConnectStatus('failed', t('error.connectDeviceLimit'))
+      safeSend(mainWindow, 'show-hwid-limit-error', hwidLimitMatch[1].trim())
+      return
+    }
+    sendConnectStatus('failed', `${e}`)
+    showError(t('dialog.profileImportFailed'), `${sourceUrl ?? profileUrl}\n${e}`)
+  }
+}
+
 async function handleDeepLink(url: string): Promise<void> {
-  if (
-    !url.startsWith('clash://') &&
-    !url.startsWith('mihomo://') &&
-    !url.startsWith('koala-clash://')
-  )
-    return
+  if (!isDeepLink(url)) return
 
   const urlObj = new URL(url)
+  const state = urlObj.searchParams.get('state')
+
   switch (urlObj.host) {
-    case 'install-config': {
+    // Round trip started by the "Add subscription" button: the cabinet hands
+    // back a one-time ticket, never the subscription link itself.
+    case 'connect': {
+      if (!consumePendingState(state)) {
+        sendConnectStatus('failed', t('error.connectStateMismatch'))
+        showError(t('dialog.profileImportFailed'), t('error.connectStateMismatch'))
+        return
+      }
+      const ticket = urlObj.searchParams.get('ticket')
+      if (!ticket) {
+        sendConnectStatus('failed', connectErrorMessage())
+        showError(t('dialog.profileImportFailed'), connectErrorMessage())
+        return
+      }
+      await showMainWindow()
+      sendConnectStatus('redeeming')
+      let redeemed: { url: string; name?: string }
       try {
-        const profileUrl = urlObj.searchParams.get('url')
-        const profileName = urlObj.searchParams.get('name')
-        if (!profileUrl) {
-          throw new Error(t('error.missingUrlParam'))
-        }
-
-        const confirmed = await showProfileInstallConfirm(profileUrl, profileName)
-
-        if (confirmed) {
-          await addProfileItem({
-            type: 'remote',
-            name: profileName ?? undefined,
-            url: profileUrl
-          })
-          mainWindow?.webContents.send('profileConfigUpdated')
-          new Notification({ title: t('notification.profileImportSuccess') }).show()
-        }
+        redeemed = await redeemTicket(ticket)
       } catch (e) {
-        const hwidLimitMatch = `${e}`.match(/HWID_LIMIT:(.*)/)
-        if (hwidLimitMatch && mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.webContents.send('show-hwid-limit-error', hwidLimitMatch[1].trim())
-          return
-        }
-        showError(t('dialog.profileImportFailed'), `${url}\n${e}`)
+        sendConnectStatus('failed', `${e instanceof Error ? e.message : e}`)
+        showError(t('dialog.profileImportFailed'), `${e instanceof Error ? e.message : e}`)
+        return
+      }
+      sendConnectStatus('importing')
+      await importSubscription(redeemed.url, redeemed.name, url)
+      break
+    }
+    case 'install-config': {
+      const profileUrl = urlObj.searchParams.get('url')
+      const profileName = urlObj.searchParams.get('name')
+      if (!profileUrl) {
+        showError(t('dialog.profileImportFailed'), `${url}\n${t('error.missingUrlParam')}`)
+        return
+      }
+      // A callback carrying our own pending state is a link we asked for, so it
+      // imports without a prompt. Anything else may have been handed to the
+      // user by someone else and still needs confirming.
+      if (consumePendingState(state)) {
+        await showMainWindow()
+        sendConnectStatus('importing')
+        await importSubscription(profileUrl, profileName, url)
+        return
+      }
+      const confirmed = await showProfileInstallConfirm(profileUrl, profileName)
+      if (confirmed) {
+        await importSubscription(profileUrl, profileName, url)
       }
       break
     }

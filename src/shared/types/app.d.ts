@@ -106,6 +106,7 @@ interface AppConfig {
   disableGPU: boolean
   mainSwitchMode?: 'tun' | 'sysproxy'
   useHotReloadProfile?: boolean
+  showTour?: boolean
 }
 
 interface ProfileConfig {
@@ -142,4 +143,11 @@ interface SubscriptionUserInfo {
   download: number
   total: number
   expire: number
+}
+
+type ConnectStatus = 'opening' | 'redeeming' | 'importing' | 'done' | 'failed'
+
+interface ConnectStatusEvent {
+  status: ConnectStatus
+  message?: string
 }

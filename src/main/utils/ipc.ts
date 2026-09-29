@@ -24,6 +24,11 @@ import {
 } from '../core/mihomoApi'
 import { checkAutoRun, disableAutoRun, enableAutoRun } from '../sys/autoRun'
 import {
+  cancelPendingConnect,
+  hasPendingConnect,
+  startSubscriptionConnect
+} from '../resolve/connect'
+import {
   getAppConfig,
   patchAppConfig,
   getControledMihomoConfig,
@@ -234,6 +239,9 @@ export function registerIpcMainHandlers(): void {
     ipcErrorWrapper(downloadAndInstallUpdate)(version)
   )
   ipcMain.handle('checkUpdate', ipcErrorWrapper(checkUpdate))
+  ipcMain.handle('startSubscriptionConnect', ipcErrorWrapper(startSubscriptionConnect))
+  ipcMain.handle('cancelSubscriptionConnect', () => cancelPendingConnect())
+  ipcMain.handle('hasPendingSubscriptionConnect', () => hasPendingConnect())
   ipcMain.handle('cancelUpdate', ipcErrorWrapper(cancelUpdate))
   ipcMain.handle('getVersion', () => app.getVersion())
   ipcMain.handle('platform', () => process.platform)
@@ -288,7 +296,7 @@ export function registerIpcMainHandlers(): void {
   ipcMain.handle('applyTheme', (_e, theme) => ipcErrorWrapper(applyTheme)(theme))
   ipcMain.handle('copyEnv', (_e, type) => ipcErrorWrapper(copyEnv)(type))
   ipcMain.handle('alert', (_e, msg) => {
-    showError('Koala Clash', msg)
+    showError('SlavaNET', msg)
   })
   ipcMain.handle('resetAppConfig', resetAppConfig)
   ipcMain.handle('relaunchApp', () => {

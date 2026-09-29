@@ -190,19 +190,24 @@ async function migration(): Promise<void> {
   }
 }
 
+// On macOS the schemes that actually work are the ones declared in Info.plist by
+// electron-builder; these calls matter for Windows and for `pnpm dev`.
+// Upstream also claimed clash/mihomo/koala-clash. We deliberately do not: on a
+// machine that has Koala Clash installed too, macOS picks the handler for a
+// shared scheme unpredictably, so we would be stealing its links or it ours.
+const DEEPLINK_SCHEMES = ['slavanet']
+
 function initDeeplink(): void {
   if (process.defaultApp) {
     if (process.argv.length >= 2) {
-      app.setAsDefaultProtocolClient('clash', process.execPath, [path.resolve(process.argv[1])])
-      app.setAsDefaultProtocolClient('mihomo', process.execPath, [path.resolve(process.argv[1])])
-      app.setAsDefaultProtocolClient('koala-clash', process.execPath, [
-        path.resolve(process.argv[1])
-      ])
+      for (const scheme of DEEPLINK_SCHEMES) {
+        app.setAsDefaultProtocolClient(scheme, process.execPath, [path.resolve(process.argv[1])])
+      }
     }
   } else {
-    app.setAsDefaultProtocolClient('clash')
-    app.setAsDefaultProtocolClient('mihomo')
-    app.setAsDefaultProtocolClient('koala-clash')
+    for (const scheme of DEEPLINK_SCHEMES) {
+      app.setAsDefaultProtocolClient(scheme)
+    }
   }
 }
 

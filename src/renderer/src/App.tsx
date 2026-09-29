@@ -38,7 +38,11 @@ const App: React.FC = () => {
   const {
     appTheme = 'system',
     customTheme,
-    autoCheckUpdate
+    autoCheckUpdate,
+    // Onboarding tour is off by default: the empty home screen with a single
+    // "Add subscription" button is the intended first run. The tour itself is
+    // kept intact and comes back by flipping this flag.
+    showTour = false
   } = appConfig || {}
   const { setTheme, systemTheme, resolvedTheme } = useTheme()
   const mapBg = resolvedTheme === 'dark' ? mapDark : mapLight
@@ -70,6 +74,7 @@ const App: React.FC = () => {
   }, [])
 
   useEffect(() => {
+    if (!showTour) return
     const tourShown = window.localStorage.getItem('tourShown')
     if (!tourShown) {
       import('@renderer/utils/driver').then(({ startTour }) => {
@@ -80,7 +85,7 @@ const App: React.FC = () => {
         })
       })
     }
-  }, [])
+  }, [showTour])
 
   useEffect(() => {
     setNativeTheme(appTheme)

@@ -156,6 +156,17 @@ export default {
 
   pages: {
     home: {
+      connectTitle: 'No subscription yet',
+      connectDescription:
+        'Press the button — the site opens, you sign in, and the subscription is added for you.',
+      connectButton: 'Add subscription',
+      connectWaiting: 'Waiting for the browser',
+      connectWaitingHint: 'Finish signing in on the site. You can leave this window open.',
+      connectRedeeming: 'Fetching the subscription',
+      connectImporting: 'Adding the subscription',
+      connectFailed: 'Could not add the subscription',
+      connectRetry: 'Try again',
+      connectManual: 'Enter a link manually',
       disconnected: 'Disconnected',
       connecting: 'Connecting...',
       connected: 'Connected',
@@ -420,7 +431,7 @@ export default {
     pleaseConfirm: 'Please Confirm',
     confirmDelete: 'Confirm Delete',
     confirmImportProfile: 'Confirm import subscription config?',
-    confirmQuit: 'Are you sure you want to quit Koala Clash?',
+    confirmQuit: 'Are you sure you want to quit SlavaNET?',
     quitWarning: 'Proxy functionality will stop working after quitting',
     quickQuitHint: 'Double press or long press',
     canQuitDirectly: 'to quit directly',
@@ -658,7 +669,7 @@ export default {
       registerTaskSchedule: 'Register Task Schedule'
     },
     serviceModal: {
-      title: 'Koala Clash Service Management',
+      title: 'SlavaNET Service Management',
       serviceStatus: 'Service Status',
       connectionStatus: 'Connection Status',
       checking: 'Checking',
@@ -971,7 +982,7 @@ export default {
     sidebarHomeDesc: 'Click the Home icon in the sidebar to return and finish the tutorial.',
     supportTitle: 'Support',
     supportDesc: 'Click here to contact your provider support.',
-    welcome: 'Welcome to Koala Clash',
+    welcome: 'Welcome to SlavaNET',
     welcomeDesc:
       'This is an interactive tutorial to help you quickly get familiar with this app. Click "Next" to continue.',
     navbar: 'Navigation Bar',

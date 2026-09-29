@@ -157,6 +157,16 @@ export default {
 
   pages: {
     home: {
+      connectTitle: 'Подписка не подключена',
+      connectDescription: 'Нажмите кнопку — откроется сайт, вы войдёте, и подписка добавится сама.',
+      connectButton: 'Добавить подписку',
+      connectWaiting: 'Ждём ответа из браузера',
+      connectWaitingHint: 'Завершите вход на сайте. Это окно можно не закрывать.',
+      connectRedeeming: 'Получаем подписку',
+      connectImporting: 'Добавляем подписку',
+      connectFailed: 'Не удалось добавить подписку',
+      connectRetry: 'Попробовать снова',
+      connectManual: 'Ввести ссылку вручную',
       disconnected: 'Отключено',
       connecting: 'Подключение...',
       connected: 'Подключено',
@@ -422,7 +432,7 @@ export default {
     pleaseConfirm: 'Подтвердите действие',
     confirmDelete: 'Подтвердить удаление',
     confirmImportProfile: 'Импортировать конфигурацию подписки?',
-    confirmQuit: 'Вы уверены, что хотите выйти из Koala Clash?',
+    confirmQuit: 'Вы уверены, что хотите выйти из SlavaNET?',
     quitWarning: 'После выхода прокси перестанет работать',
     quickQuitHint: 'Нажмите дважды или удерживайте кнопку',
     canQuitDirectly: 'для быстрого выхода',
@@ -660,7 +670,7 @@ export default {
       registerTaskSchedule: 'Зарегистрировать задачу'
     },
     serviceModal: {
-      title: 'Управление службой Koala Clash',
+      title: 'Управление службой SlavaNET',
       serviceStatus: 'Состояние службы',
       connectionStatus: 'Состояние подключения',
       checking: 'Проверка',
@@ -973,7 +983,7 @@ export default {
       'Нажмите на иконку «Главная», чтобы вернуться на главную страницу.',
     supportTitle: 'Поддержка',
     supportDesc: 'Нажмите, чтобы связаться с поддержкой провайдера.',
-    welcome: 'Добро пожаловать в Koala Clash',
+    welcome: 'Добро пожаловать в SlavaNET',
     welcomeDesc:
       'Краткое руководство поможет быстро разобраться в приложении. Нажмите «Далее», чтобы начать.',
     navbar: 'Панель навигации',

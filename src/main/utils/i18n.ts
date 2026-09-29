@@ -48,7 +48,7 @@ const zhCN: LocaleTranslations = {
   },
   menu: {
     about: '关于',
-    aboutApp: '关于 Koala Clash',
+    aboutApp: '关于 SlavaNET',
     hide: '隐藏',
     hideOthers: '隐藏其他',
     showAll: '显示全部',
@@ -100,6 +100,13 @@ const zhCN: LocaleTranslations = {
     selectSubscriptionFile: '选择订阅文件'
   },
   error: {
+    connectNotAuthorized: '您尚未登录账户',
+    connectNoSubscription: '您的账户没有有效订阅',
+    connectExpired: '订阅已过期',
+    connectDeviceLimit: '已达到设备数量上限',
+    connectTicketExpired: '请求已过期，请重试',
+    connectStateMismatch: '此回调与待处理的请求不匹配，请重新点击「添加订阅」',
+    connectGeneric: '无法获取订阅',
     missingUrlParam: '缺少参数 url',
     keyCannotBeEmpty: '密钥不能为空',
     publicKeyNotInitialized: '公钥未初始化',
@@ -188,7 +195,7 @@ const enUS: LocaleTranslations = {
   },
   menu: {
     about: 'About',
-    aboutApp: 'About Koala Clash',
+    aboutApp: 'About SlavaNET',
     hide: 'Hide',
     hideOthers: 'Hide Others',
     showAll: 'Show All',
@@ -240,6 +247,13 @@ const enUS: LocaleTranslations = {
     selectSubscriptionFile: 'Select subscription file'
   },
   error: {
+    connectNotAuthorized: 'You are not signed in to your account',
+    connectNoSubscription: 'No active subscription on your account',
+    connectExpired: 'Subscription has expired',
+    connectDeviceLimit: 'Device limit reached',
+    connectTicketExpired: 'The request expired, please try again',
+    connectStateMismatch: 'This callback does not match a pending request. Press “Add subscription” again',
+    connectGeneric: 'Could not get the subscription',
     missingUrlParam: 'Missing parameter: url',
     keyCannotBeEmpty: 'Key cannot be empty',
     publicKeyNotInitialized: 'Public key not initialized',
@@ -328,7 +342,7 @@ const ruRU: LocaleTranslations = {
   },
   menu: {
     about: 'О программе',
-    aboutApp: 'О Koala Clash',
+    aboutApp: 'О SlavaNET',
     hide: 'Скрыть',
     hideOthers: 'Скрыть остальные',
     showAll: 'Показать все',
@@ -380,6 +394,13 @@ const ruRU: LocaleTranslations = {
     selectSubscriptionFile: 'Выберите файл подписки'
   },
   error: {
+    connectNotAuthorized: 'Вы не вошли в личный кабинет',
+    connectNoSubscription: 'У вашего аккаунта нет активной подписки',
+    connectExpired: 'Срок подписки истёк',
+    connectDeviceLimit: 'Достигнут лимит устройств',
+    connectTicketExpired: 'Запрос устарел, попробуйте ещё раз',
+    connectStateMismatch: 'Этот ответ не совпал с ожидаемым запросом. Нажмите «Добавить подписку» ещё раз',
+    connectGeneric: 'Не удалось получить подписку',
     missingUrlParam: 'Отсутствует параметр: url',
     keyCannotBeEmpty: 'Ключ не может быть пустым',
     publicKeyNotInitialized: 'Открытый ключ не инициализирован',
