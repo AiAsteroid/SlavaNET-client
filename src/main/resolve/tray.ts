@@ -19,7 +19,14 @@ import {
   mihomoGroupDelay,
   patchMihomoConfig
 } from '../core/mihomoApi'
-import { mainWindow, setNotQuitDialog, showMainWindow, triggerMainWindow } from '..'
+import {
+  mainWindow,
+  setNotQuitDialog,
+  showMainWindow,
+  startSubscriptionConnect,
+  triggerMainWindow
+} from '..'
+import { safeSend } from '../utils/safeSend'
 import {
   app,
   BrowserWindow,
@@ -203,7 +210,9 @@ export const buildContextMenu = async (): Promise<Menu> => {
           ]
         }
       })
-      groupsMenu.unshift({ type: 'separator' })
+      if (groupsMenu.length) {
+        groupsMenu.unshift({ type: 'separator' })
+      }
     } catch (e) {
       // ignore
       // 避免出错时无法创建托盘菜单
@@ -229,6 +238,9 @@ export const buildContextMenu = async (): Promise<Menu> => {
       label: (mainSwitchMode === 'tun' ? (tun?.enable ?? false) : proxyMode)
         ? t('tray.disable')
         : t('tray.enable'),
+      // Without a subscription the core runs on an empty config and routes
+      // everything DIRECT, so turning this on would only claim protection.
+      enabled: items.length > 0,
       accelerator: mainSwitchMode === 'tun' ? triggerTunShortcut : triggerSysProxyShortcut,
       click: async (): Promise<void> => {
         const currentEnabled = mainSwitchMode === 'tun' ? (tun?.enable ?? false) : proxyMode
@@ -308,23 +320,47 @@ export const buildContextMenu = async (): Promise<Menu> => {
       : []),
     ...groupsMenu,
     { type: 'separator' },
-    {
-      type: 'submenu',
-      label: t('tray.subscriptionConfig'),
-      submenu: items.map((item) => {
-        return {
-          type: 'radio',
-          label: item.name,
-          checked: item.id === current,
+    // With no subscriptions an empty submenu is a dead end — the very state the
+    // owner landed in after deleting the last one. Offer the way back instead.
+    items.length === 0
+      ? {
+          type: 'normal' as const,
+          label: t('tray.addSubscription'),
           click: async (): Promise<void> => {
-            if (item.id === current) return
-            await changeCurrentProfile(item.id)
-            mainWindow?.webContents.send('profileConfigUpdated')
-            ipcMain.emit('updateTrayMenu')
+            // Order matters: progress is only delivered to the main window, so
+            // it has to exist before the round trip starts.
+            await showMainWindow()
+            void startSubscriptionConnect()
           }
         }
-      })
-    },
+      : {
+          type: 'submenu' as const,
+          label: t('tray.subscriptionConfig'),
+          submenu: [
+            ...items.map((item) => {
+              return {
+                type: 'radio' as const,
+                label: item.name,
+                checked: item.id === current,
+                click: async (): Promise<void> => {
+                  if (item.id === current) return
+                  await changeCurrentProfile(item.id)
+                  safeSend(mainWindow, 'profileConfigUpdated')
+                  ipcMain.emit('updateTrayMenu')
+                }
+              }
+            }),
+            { type: 'separator' as const },
+            {
+              type: 'normal' as const,
+              label: t('tray.addSubscription'),
+              click: async (): Promise<void> => {
+                await showMainWindow()
+                void startSubscriptionConnect()
+              }
+            }
+          ]
+        },
     { type: 'separator' },
     {
       id: 'quitWithoutCore',

@@ -18,6 +18,9 @@ import { getUserAgent } from '../utils/userAgent'
 import { getHWID, getDeviceOS, getOSVersion, getDeviceModel } from '../utils/deviceInfo'
 import { t } from '../utils/i18n'
 import { downloadCustomCss } from '../resolve/theme'
+import { triggerSysProxy } from '../sys/sysproxy'
+import { updateTrayIcon } from '../resolve/tray'
+import { safeSend } from '../utils/safeSend'
 
 let profileConfig: ProfileConfig // profile.yaml
 
@@ -129,6 +132,34 @@ async function enforceGlobalModeRestriction(id: string): Promise<void> {
   }
 }
 
+// Removing the last subscription has to put the connection down as well. The
+// core restarts on an empty config, which sends everything DIRECT, while the
+// tray icon and menu keep saying "connected" — the worst possible pairing: the
+// person believes they are protected and they are not. There is no power
+// button to reach either, because the home screen switches to the empty card.
+async function stopConnectionAfterLastRemoved(): Promise<void> {
+  const { onlyActiveDevice = false, proxyMode = false } = await getAppConfig()
+  const { tun } = await getControledMihomoConfig()
+  if (tun?.enable) {
+    await patchControledMihomoConfig({ tun: { enable: false } })
+  }
+  if (proxyMode) {
+    await patchAppConfig({ proxyMode: false })
+    try {
+      await triggerSysProxy(false, onlyActiveDevice)
+    } catch {
+      // the system proxy may already be gone; nothing actionable for the user
+    }
+  }
+  // The list emptied too, and whoever triggered the removal may not be the
+  // renderer — the tray can do it, and so can a future path. Tell the window
+  // itself instead of relying on the caller to refresh.
+  safeSend(mainWindow, 'profileConfigUpdated')
+  safeSend(mainWindow, 'controledMihomoConfigUpdated')
+  safeSend(mainWindow, 'appConfigUpdated')
+  await updateTrayIcon()
+}
+
 export async function removeProfileItem(id: string): Promise<void> {
   const config = await getProfileConfig()
   config.items = config.items?.filter((item) => item.id !== id)
@@ -144,6 +175,10 @@ export async function removeProfileItem(id: string): Promise<void> {
   await setProfileConfig(config)
   if (existsSync(profilePath(id))) {
     await rm(profilePath(id))
+  }
+  // Before the restart, so the core comes back up with the tunnel already off.
+  if (!config.items || config.items.length === 0) {
+    await stopConnectionAfterLastRemoved()
   }
   if (shouldRestart) {
     const { useHotReloadProfile = false } = await getAppConfig()

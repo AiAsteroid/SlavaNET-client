@@ -43,13 +43,19 @@ type Report = (progress: ConnectProgress) => void
 
 let cancelled = false
 let running = false
+// The card lives on two screens now, so leaving and coming back mid-flow is
+// normal. Progress arrives as one-off events, so the last one is kept here and
+// replayed to whoever asks — otherwise the screen falls back to "Add
+// subscription" while the person is still confirming in Telegram.
+let lastProgress: ConnectProgress | null = null
 
 export function cancelSubscriptionConnect(): void {
   cancelled = true
+  lastProgress = null
 }
 
-export function isSubscriptionConnectRunning(): boolean {
-  return running
+export function getPendingSubscriptionConnect(): ConnectProgress | null {
+  return running ? lastProgress : null
 }
 
 function sleep(ms: number): Promise<void> {
@@ -218,8 +224,12 @@ export async function runSubscriptionConnect(report: Report): Promise<FetchedSub
   if (running) throw new ConnectError(t('error.connectAlreadyRunning'))
   running = true
   cancelled = false
+  const track: Report = (p) => {
+    lastProgress = p
+    report(p)
+  }
   try {
-    report({ status: 'requesting' })
+    track({ status: 'requesting' })
     const { token, botUsername, ttlMs } = await requestDeepLink()
 
     const link = `https://t.me/${botUsername}?start=webauth_${token}`
@@ -230,14 +240,15 @@ export async function runSubscriptionConnect(report: Report): Promise<FetchedSub
     } catch {
       // reported through the card below
     }
-    report({ status: 'waiting', link })
+    track({ status: 'waiting', link })
 
-    const session = await pollForSession(token, Date.now() + ttlMs, report)
+    const session = await pollForSession(token, Date.now() + ttlMs, track)
 
-    report({ status: 'fetching' })
+    track({ status: 'fetching' })
     return await fetchSubscription(session)
   } finally {
     running = false
+    lastProgress = null
   }
 }
 

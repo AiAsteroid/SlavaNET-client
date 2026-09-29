@@ -328,8 +328,10 @@ export async function cancelSubscriptionConnect(): Promise<void> {
   return ipcErrorWrapper(await window.electron.ipcRenderer.invoke('cancelSubscriptionConnect'))
 }
 
-export async function hasPendingSubscriptionConnect(): Promise<boolean> {
-  return ipcErrorWrapper(await window.electron.ipcRenderer.invoke('hasPendingSubscriptionConnect'))
+// Returns the step a round trip is currently on, or null when none is running.
+// Used to restore the card after the person navigates away and back.
+export async function getPendingSubscriptionConnect(): Promise<ConnectStatusEvent | null> {
+  return ipcErrorWrapper(await window.electron.ipcRenderer.invoke('getPendingSubscriptionConnect'))
 }
 
 export async function downloadAndInstallUpdate(version: string): Promise<void> {

@@ -33,6 +33,7 @@ const zhCN: LocaleTranslations = {
     globalMode: '全局模式',
     directMode: '直连模式',
     subscriptionConfig: '订阅配置',
+    addSubscription: '添加订阅',
     openDirectory: '打开目录',
     appDirectory: '应用目录',
     workDirectory: '工作目录',
@@ -100,7 +101,7 @@ const zhCN: LocaleTranslations = {
     selectSubscriptionFile: '选择订阅文件'
   },
   error: {
-    connectNotAuthorized: '您尚未登录账户',
+    connectNotAuthorized: '无法确认登录，请重试',
     connectNoSubscription: '您的账户没有有效订阅',
     connectExpired: '订阅已过期',
     connectDeviceLimit: '已达到设备数量上限',
@@ -184,7 +185,8 @@ const enUS: LocaleTranslations = {
     ruleMode: 'Rule Mode',
     globalMode: 'Global Mode',
     directMode: 'Direct Mode',
-    subscriptionConfig: 'Profiles',
+    subscriptionConfig: 'Subscriptions',
+    addSubscription: 'Add subscription',
     openDirectory: 'Open Directory',
     appDirectory: 'App Directory',
     workDirectory: 'Work Directory',
@@ -243,17 +245,17 @@ const enUS: LocaleTranslations = {
     switchedToRuleMode: 'Switched to Rule Mode',
     switchedToGlobalMode: 'Switched to Global Mode',
     switchedToDirectMode: 'Switched to Direct Mode',
-    profileImportSuccess: 'Profile imported successfully',
+    profileImportSuccess: 'Subscription added',
   },
   dialog: {
     firstRunAdmin: 'Please run as administrator for the first time',
     appInitFailed: 'Application initialization failed',
     coreStartError: 'Core startup error',
-    profileImportFailed: 'Profile import failed',
+    profileImportFailed: 'Could not add the subscription',
     selectSubscriptionFile: 'Select subscription file'
   },
   error: {
-    connectNotAuthorized: 'You are not signed in to your account',
+    connectNotAuthorized: 'Could not confirm the sign-in, please try again',
     connectNoSubscription: 'No active subscription on your account',
     connectExpired: 'Subscription has expired',
     connectDeviceLimit: 'Device limit reached',
@@ -337,7 +339,8 @@ const ruRU: LocaleTranslations = {
     ruleMode: 'Режим правил',
     globalMode: 'Глобальный режим',
     directMode: 'Прямой режим',
-    subscriptionConfig: 'Профили',
+    subscriptionConfig: 'Подписки',
+    addSubscription: 'Добавить подписку',
     openDirectory: 'Открыть папку',
     appDirectory: 'Папка приложения',
     workDirectory: 'Рабочая папка',
@@ -406,7 +409,7 @@ const ruRU: LocaleTranslations = {
     selectSubscriptionFile: 'Выберите файл подписки'
   },
   error: {
-    connectNotAuthorized: 'Вы не вошли в личный кабинет',
+    connectNotAuthorized: 'Не удалось подтвердить вход, попробуйте ещё раз',
     connectNoSubscription: 'У вашего аккаунта нет активной подписки',
     connectExpired: 'Срок подписки истёк',
     connectDeviceLimit: 'Достигнут лимит устройств',

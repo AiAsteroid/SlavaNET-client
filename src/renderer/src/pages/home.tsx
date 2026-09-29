@@ -4,13 +4,7 @@ import { useAppConfig } from '@renderer/hooks/use-app-config'
 import { useControledMihomoConfig } from '@renderer/hooks/use-controled-mihomo-config'
 import { useProfileConfig } from '@renderer/hooks/use-profile-config'
 import { useGroups } from '@renderer/hooks/use-groups'
-import {
-  triggerSysProxy,
-  updateTrayIcon,
-  mihomoHotReloadConfig,
-  startSubscriptionConnect,
-  cancelSubscriptionConnect
-} from '@renderer/utils/ipc'
+import { triggerSysProxy, updateTrayIcon, mihomoHotReloadConfig } from '@renderer/utils/ipc'
 import { useTranslation } from 'react-i18next'
 import { memo, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -19,19 +13,17 @@ import Power from '@renderer/assets/on_icon.svg'
 import Pause from '@renderer/assets/pause_icon.svg'
 import {
   InfinityIcon,
-  WifiOff,
-  PlusCircle,
   ChevronRight,
   Globe,
   ArrowUp,
   ArrowDown,
   RefreshCcw,
   CalendarClock,
-  CreditCard,
-  AlertCircle
+  CreditCard
 } from 'lucide-react'
 import { SiTelegram } from 'react-icons/si'
 import EditInfoModal from '@renderer/components/profiles/edit-info-modal'
+import SubscriptionEmptyState from '@renderer/components/profiles/subscription-empty-state'
 import { Spinner } from '@renderer/components/ui/spinner'
 import { CharacterMorph } from '@renderer/components/ui/character-morph'
 import { calcTraffic } from '@renderer/utils/calc'
@@ -118,49 +110,6 @@ const Home: React.FC = () => {
     }
     setEditingItem(newProfile)
     setShowEditModal(true)
-  }
-
-  // One-click flow: the main process opens Telegram, waits for the person to
-  // confirm there, then fetches the subscription. It reports every step over
-  // 'subscription-connect-status'. The card always offers Cancel and the manual
-  // link, so nobody is stuck waiting on us.
-  const [connectStatus, setConnectStatus] = useState<ConnectStatus | null>(null)
-  const [connectError, setConnectError] = useState<string | null>(null)
-  const [connectLink, setConnectLink] = useState<string | null>(null)
-  const connectBusy =
-    connectStatus === 'requesting' ||
-    connectStatus === 'waiting' ||
-    connectStatus === 'fetching' ||
-    connectStatus === 'importing'
-
-  useEffect(() => {
-    return window.electron.ipcRenderer.on(
-      'subscription-connect-status',
-      (_event, payload: ConnectStatusEvent) => {
-        setConnectStatus(payload.status)
-        setConnectError(payload.status === 'failed' ? (payload.message ?? null) : null)
-        if (payload.link) setConnectLink(payload.link)
-      }
-    )
-  }, [])
-
-  const handleConnect = async (): Promise<void> => {
-    setConnectError(null)
-    setConnectLink(null)
-    setConnectStatus('requesting')
-    try {
-      await startSubscriptionConnect()
-    } catch (e) {
-      setConnectStatus('failed')
-      setConnectError(`${e}`)
-    }
-  }
-
-  const handleCancelConnect = async (): Promise<void> => {
-    await cancelSubscriptionConnect()
-    setConnectStatus(null)
-    setConnectError(null)
-    setConnectLink(null)
   }
 
   const trafficInfo = useTrafficStore((s) => s.traffic)
@@ -312,83 +261,7 @@ const Home: React.FC = () => {
     <BasePage>
       {!hasProfiles ? (
         <div className="h-full w-full flex items-center justify-center">
-          <div className="flex flex-col items-center gap-4 max-w-75 rounded-2xl border border-stroke bg-card/50 backdrop-blur-xl p-8">
-            {connectBusy ? (
-              <>
-                <Spinner className="size-16 text-muted-foreground" />
-                <h2 className="text-xl font-bold text-foreground text-center text-balance">
-                  {connectStatus === 'requesting'
-                    ? t('pages.home.connectRequesting')
-                    : connectStatus === 'waiting'
-                      ? t('pages.home.connectWaiting')
-                      : connectStatus === 'fetching'
-                        ? t('pages.home.connectFetching')
-                        : t('pages.home.connectImporting')}
-                </h2>
-                {connectStatus === 'waiting' && (
-                  <>
-                    <p className="text-sm font-medium text-muted-foreground text-center text-balance">
-                      {connectError ?? t('pages.home.connectWaitingHint')}
-                    </p>
-                    {/* Telegram may fail to come to the front, or the person
-                        may close it by accident — let them reopen the link. */}
-                    {connectLink && (
-                      <button
-                        onClick={() => window.open(connectLink)}
-                        className="text-xs text-foreground underline underline-offset-2 hover:opacity-80 transition-opacity"
-                      >
-                        {t('pages.home.connectOpenTelegram')}
-                      </button>
-                    )}
-                  </>
-                )}
-                <button
-                  onClick={handleCancelConnect}
-                  className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  {t('common.cancel')}
-                </button>
-              </>
-            ) : (
-              <>
-                {connectStatus === 'failed' ? (
-                  <AlertCircle className="size-16 text-destructive" />
-                ) : (
-                  <WifiOff className="size-16 text-muted-foreground" />
-                )}
-                <h2 className="text-xl font-bold text-foreground">
-                  {connectStatus === 'failed'
-                    ? t('pages.home.connectFailed')
-                    : t('pages.home.connectTitle')}
-                </h2>
-                <p className="text-sm font-medium text-muted-foreground text-center text-balance">
-                  {connectStatus === 'failed' && connectError
-                    ? connectError
-                    : t('pages.home.connectDescription')}
-                </p>
-                <button
-                  onClick={handleConnect}
-                  data-guide="home-add-profile-btn"
-                  className="flex items-center gap-2 rounded-xl border border-stroke bg-gradient-start-power-on/50 backdrop-blur-xl px-6 py-3 text-foreground hover:bg-gradient-start-power-on/40 transition-colors"
-                >
-                  <PlusCircle className="size-5" />
-                  <span className="text-sm font-medium">
-                    {connectStatus === 'failed'
-                      ? t('pages.home.connectRetry')
-                      : t('pages.home.connectButton')}
-                  </span>
-                </button>
-                {/* Escape hatch: no cabinet session in the default browser, a
-                    link handed over by support, or an unregistered scheme. */}
-                <button
-                  onClick={handleAddProfile}
-                  className="text-xs text-muted-foreground hover:text-foreground transition-colors underline underline-offset-2"
-                >
-                  {t('pages.home.connectManual')}
-                </button>
-              </>
-            )}
-          </div>
+          <SubscriptionEmptyState onManual={handleAddProfile} guideAnchor />
           {showEditModal && editingItem && (
             <EditInfoModal
               item={editingItem}

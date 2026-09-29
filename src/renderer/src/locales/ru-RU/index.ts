@@ -208,9 +208,6 @@ export default {
       unsupportedFileType: 'Неподдерживаемый тип файла',
       checkUpdate: 'Проверить обновления',
       openInBrowser: 'Открыть в браузере',
-      emptyTitle: 'Профилей пока нет',
-      emptyDescription: 'Добавьте профиль, чтобы начать',
-      addProfile: 'Добавить профиль',
       dropFileHint: 'Перетащите файл конфигурации сюда',
       hwidLimitTitle: 'Лимит устройств превышен',
       hwidLimitDescription:

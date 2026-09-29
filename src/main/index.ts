@@ -18,7 +18,7 @@ import { existsSync, writeFileSync } from 'fs'
 import { exePath, taskDir } from './utils/dirs'
 import { showFloatingWindow } from './resolve/floatingWindow'
 import { safeSend } from './utils/safeSend'
-import { runSubscriptionConnect } from './resolve/connect'
+import { getPendingSubscriptionConnect, runSubscriptionConnect } from './resolve/connect'
 import { getAppConfigSync } from './config/app'
 import { declineElevation, ELEVATION_DECLINED_ARG } from './utils/elevation'
 import { t } from './utils/i18n'
@@ -384,6 +384,13 @@ function sendConnectStatus(progress: ConnectStatusEvent): void {
 // Drives the whole cabinet round trip and imports what comes back. Errors are
 // reported on the card the user is already looking at, not only in a dialog.
 export async function startSubscriptionConnect(): Promise<void> {
+  const pending = getPendingSubscriptionConnect()
+  if (pending) {
+    // Already waiting on the person in Telegram. Show where it stands instead
+    // of starting a second round trip and calling the first one a failure.
+    sendConnectStatus(pending)
+    return
+  }
   try {
     const { url, name } = await runSubscriptionConnect(sendConnectStatus)
     sendConnectStatus({ status: 'importing' })
@@ -417,7 +424,13 @@ async function importSubscription(
       return
     }
     sendConnectStatus({ status: 'failed', message: `${e}` })
-    showError(t('dialog.profileImportFailed'), `${sourceUrl ?? profileUrl}\n${e}`)
+    // Only the deep link path gets a dialog, and only with the link the person
+    // clicked themselves. In the Telegram flow the subscription URL is private
+    // and never shown to them — putting it in an error box invites screenshots
+    // of a credential into support chats. The card already states the reason.
+    if (sourceUrl) {
+      showError(t('dialog.profileImportFailed'), `${sourceUrl}\n${e}`)
+    }
   }
 }
 

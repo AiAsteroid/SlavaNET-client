@@ -3,8 +3,15 @@ import { Button } from '@renderer/components/ui/button'
 import BasePage from '@renderer/components/base/base-page'
 import ProfileItem from '@renderer/components/profiles/profile-item'
 import EditInfoModal from '@renderer/components/profiles/edit-info-modal'
+import SubscriptionEmptyState from '@renderer/components/profiles/subscription-empty-state'
 import { useProfileConfig } from '@renderer/hooks/use-profile-config'
-import { readTextFile } from '@renderer/utils/ipc'
+import { readTextFile, startSubscriptionConnect } from '@renderer/utils/ipc'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger
+} from '@renderer/components/ui/dropdown-menu'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   DndContext,
@@ -137,6 +144,35 @@ const Profiles: React.FC = () => {
     setSortedItems(itemsArray)
   }, [itemsArray])
 
+  // With subscriptions already present the progress card is not on screen, so
+  // the round trip would run invisibly. Report it here instead — but only in
+  // that case, or the card and these toasts would say the same thing twice.
+  const hasItems = sortedItems.length > 0
+  useEffect(() => {
+    if (!hasItems) return undefined
+    return window.electron.ipcRenderer.on(
+      'subscription-connect-status',
+      (_event, payload: ConnectStatusEvent) => {
+        const id = 'subscription-connect'
+        if (payload.status === 'waiting') {
+          toast.loading(tRef.current('pages.home.connectWaiting'), {
+            id,
+            description: tRef.current('pages.home.connectWaitingHint')
+          })
+        } else if (payload.status === 'fetching' || payload.status === 'importing') {
+          toast.loading(tRef.current('pages.home.connectFetching'), { id })
+        } else if (payload.status === 'done') {
+          toast.success(tRef.current('pages.home.connectButton'), { id, description: undefined })
+        } else if (payload.status === 'failed') {
+          toast.error(tRef.current('pages.home.connectFailed'), {
+            id,
+            description: payload.message
+          })
+        }
+      }
+    )
+  }, [hasItems])
+
   const handleAddProfile = (): void => {
     const newProfile: ProfileItem = {
       id: '',
@@ -156,14 +192,24 @@ const Profiles: React.FC = () => {
       title={t('pages.profiles.title')}
       header={
         <>
-          <Button
-            className="new-profile app-nodrag"
-            variant="ghost"
-            size="icon-sm"
-            onClick={handleAddProfile}
-          >
-            <Plus />
-          </Button>
+          {/* Two ways in, not one: the cabinet round trip is the main path and
+              has to stay reachable once a subscription already exists — a
+              person with a stale link should not have to delete it first. */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button className="new-profile app-nodrag" variant="ghost" size="icon-sm">
+                <Plus />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => startSubscriptionConnect()}>
+                {t('pages.home.connectButton')}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleAddProfile}>
+                {t('pages.home.connectManual')}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Button
             size="icon-sm"
             title={t('pages.profiles.updateAll')}
@@ -216,18 +262,10 @@ const Profiles: React.FC = () => {
       )}
 
       {sortedItems.length === 0 ? (
+        // Same card as the home screen: deleting the last subscription must
+        // offer the same way back in, not the old manual-only prompt.
         <div className="h-full w-full flex justify-center items-center">
-          <div className="flex flex-col items-center gap-3">
-            <Button className="rounded-full w-20 h-20 hover:bg-card" variant="outline" onClick={handleAddProfile}>
-              <Plus className="text-muted-foreground size-10" />
-            </Button>
-            <h2 className="text-muted-foreground text-lg font-medium">
-              {t('pages.profiles.emptyTitle')}
-            </h2>
-            <p className="text-muted-foreground/70 text-sm">
-              {t('pages.profiles.emptyDescription')}
-            </p>
-          </div>
+          <SubscriptionEmptyState onManual={handleAddProfile} />
         </div>
       ) : (
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>

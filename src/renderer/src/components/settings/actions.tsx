@@ -18,6 +18,7 @@ import useSWR from 'swr'
 import { useUpdaterStore } from '@renderer/store/updater-store'
 import { useShallow } from 'zustand/react/shallow'
 import UpdaterModal from '../updater/updater-modal'
+import { useAppConfig } from '@renderer/hooks/use-app-config'
 import { version } from '@renderer/utils/init'
 import { startTour } from '@renderer/utils/driver'
 import { useNavigate } from 'react-router-dom'
@@ -35,6 +36,8 @@ interface ActionsProps {
 const Actions: React.FC<ActionsProps> = (props) => {
   const { showHiddenSettings, onUnlockHiddenSettings } = props
   const { t } = useTranslation()
+  const { appConfig } = useAppConfig()
+  const { showTour = false } = appConfig || {}
   const navigate = useNavigate()
   const { data: coreVersion } = useSWR('mihomoVersion', mihomoVersion)
   const [newVersion, setNewVersion] = useState('')
@@ -92,17 +95,23 @@ const Actions: React.FC<ActionsProps> = (props) => {
         />
       )}
       <SettingCard>
-        <SettingItem title={t('settings.actions.openGuidePage')} divider>
-          <Button
-            size="sm"
-            onClick={() => {
-              window.localStorage.setItem('tourShown', 'true')
-              startTour(navigate)
-            }}
-          >
-            {t('settings.actions.openGuide')}
-          </Button>
-        </SettingItem>
+        {/* The tour still walks through the old manual import: it points at a
+            paste field and an Import button that the Telegram flow does not
+            have. Hidden until it is rewritten — the same showTour flag that
+            keeps it from running on first launch. */}
+        {showTour && (
+          <SettingItem title={t('settings.actions.openGuidePage')} divider>
+            <Button
+              size="sm"
+              onClick={() => {
+                window.localStorage.setItem('tourShown', 'true')
+                startTour(navigate)
+              }}
+            >
+              {t('settings.actions.openGuide')}
+            </Button>
+          </SettingItem>
+        )}
         <SettingItem title={t('settings.actions.checkUpdate')} divider>
           <Button
             size="sm"

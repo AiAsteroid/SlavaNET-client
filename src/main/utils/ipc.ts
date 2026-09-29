@@ -23,7 +23,7 @@ import {
   restartMihomoConnections
 } from '../core/mihomoApi'
 import { checkAutoRun, disableAutoRun, enableAutoRun } from '../sys/autoRun'
-import { cancelSubscriptionConnect, isSubscriptionConnectRunning } from '../resolve/connect'
+import { cancelSubscriptionConnect, getPendingSubscriptionConnect } from '../resolve/connect'
 import {
   getAppConfig,
   patchAppConfig,
@@ -242,7 +242,7 @@ export function registerIpcMainHandlers(): void {
     void startSubscriptionConnect()
   })
   ipcMain.handle('cancelSubscriptionConnect', () => cancelSubscriptionConnect())
-  ipcMain.handle('hasPendingSubscriptionConnect', () => isSubscriptionConnectRunning())
+  ipcMain.handle('getPendingSubscriptionConnect', () => getPendingSubscriptionConnect())
   ipcMain.handle('cancelUpdate', ipcErrorWrapper(cancelUpdate))
   ipcMain.handle('getVersion', () => app.getVersion())
   ipcMain.handle('platform', () => process.platform)

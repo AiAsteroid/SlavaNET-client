@@ -207,9 +207,6 @@ export default {
       unsupportedFileType: 'Unsupported file type',
       checkUpdate: 'Check for updates',
       openInBrowser: 'Open in browser',
-      emptyTitle: 'No profiles yet',
-      emptyDescription: 'Add a profile to get started',
-      addProfile: 'Add Profile',
       dropFileHint: 'Drop config file here',
       hwidLimitTitle: 'Device limit exceeded',
       hwidLimitDescription:
