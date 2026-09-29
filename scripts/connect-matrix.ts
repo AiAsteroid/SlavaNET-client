@@ -57,7 +57,8 @@ const SCENARIOS: [string, string][] = [
   ["poll_500_html", "500 с HTML вместо JSON"],
   ["poll_429_recover", "429 дважды, потом успех"],
   ["req_429", "429 на запросе токена"],
-  ["req_botmissing", "503 Bot not configured"],
+  ["req_botmissing", "бот не настроен: 200 с пустым bot_username"],
+  ["req_botmissing_legacy", "старый кабинет: 503 Bot not configured"],
   ["timeout", "человек не подтвердил (TTL 6 c)"],
   ["poll_netdrop", "связь рвётся на двух опросах, потом успех"]
 ]
@@ -66,6 +67,7 @@ const SCENARIOS: [string, string][] = [
 // на который уходит человек, поэтому хватает выборки.
 const WEBSITE_SCENARIOS: [string, string][] = [
   ["happy", "успех через сайт"],
+  ["req_botmissing", "бот не настроен — сайтовый вход обязан работать"],
   ["poll_gone", "410 при опросе"],
   ["poll_netdrop", "связь рвётся на двух опросах, потом успех"]
 ]

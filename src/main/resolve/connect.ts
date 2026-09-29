@@ -124,11 +124,9 @@ async function requestDeepLink(via: ConnectRoute): Promise<DeepLinkToken> {
   }
   if (res.status !== 200) {
     const detail = detailOf(res.data)
+    // Older cabinets answered 503 here when no bot username was set, which
+    // killed the site route too. Kept for a cabinet that has not been updated.
     if (detail === 'Bot not configured') {
-      // The cabinet creates the token first and only then refuses because no
-      // bot username is set, so this kills the site route too even though it
-      // needs no bot. Nothing the client can do about that — but it must not
-      // blame Telegram to someone who chose the website.
       throw new ConnectError(
         t(via === 'website' ? 'error.connectLoginUnavailable' : 'error.connectBotUnavailable')
       )
@@ -136,10 +134,15 @@ async function requestDeepLink(via: ConnectRoute): Promise<DeepLinkToken> {
     throw new ConnectError(connectErrorMessage(detail, res.status))
   }
   const data = res.data as { token?: string; bot_username?: string; expires_in?: number }
-  // bot_username matters only to the Telegram route. The site route has to keep
-  // working where no bot is reachable — which is the whole reason it exists.
-  if (!data.token || (via === 'telegram' && !data.bot_username)) {
+  if (!data.token) {
     throw new ConnectError(connectErrorMessage(undefined, res.status))
+  }
+  // The cabinet now answers 200 with an EMPTY bot_username instead of refusing
+  // the whole route, so that the site route keeps working where no bot is
+  // configured. Only the Telegram route is stuck then — and it says so, rather
+  // than falling through to a generic "could not get the subscription".
+  if (via === 'telegram' && !data.bot_username) {
+    throw new ConnectError(t('error.connectBotUnavailable'))
   }
   return {
     token: data.token,

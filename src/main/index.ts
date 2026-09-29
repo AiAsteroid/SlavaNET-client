@@ -2,7 +2,7 @@ import { electronApp, is, optimizer } from '@electron-toolkit/utils'
 import { registerIpcMainHandlers } from './utils/ipc'
 import windowStateKeeper from 'electron-window-state'
 import { app, BrowserWindow, dialog, ipcMain, Menu, Notification, powerMonitor, shell } from 'electron'
-import { addProfileItem, getAppConfig, patchControledMihomoConfig } from './config'
+import { addProfileItem, getAppConfig, getProfileConfig, patchControledMihomoConfig } from './config'
 import { quitWithoutCore, startCore, stopCore } from './core/manager'
 import { triggerSysProxy } from './sys/sysproxy'
 import icon from '../../resources/icon.png?asset'
@@ -426,6 +426,14 @@ async function importFromSession(): Promise<boolean> {
 // anything; everyone else gets the sign-in dialog.
 export async function openSubscriptionEntry(): Promise<void> {
   await showMainWindow()
+  // A link arriving while a sign-in is already running must not start a second
+  // one, and above all must not ask to sign in again: the website fires its
+  // redirect at exactly the moment the poll is still waiting for the answer.
+  const pending = getPendingSubscriptionConnect()
+  if (pending) {
+    sendConnectStatus(pending)
+    return
+  }
   if (hasCabinetSession() && (await importFromSession())) {
     return
   }
@@ -456,6 +464,15 @@ async function importSubscription(
   sourceUrl?: string
 ): Promise<void> {
   try {
+    // The same subscription can arrive twice: the person confirms on the
+    // website, the poll imports it, and the page's redirect then wakes the app
+    // again. Adding it twice would leave two identical profiles and no way for
+    // the person to tell which one is live.
+    const { items } = await getProfileConfig()
+    if (items.some((item) => item.url === profileUrl)) {
+      sendConnectStatus({ status: 'done' })
+      return
+    }
     await addProfileItem({
       type: 'remote',
       name: profileName ?? undefined,

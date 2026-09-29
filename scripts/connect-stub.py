@@ -45,6 +45,10 @@ class H(http.server.BaseHTTPRequestHandler):
             if sc == "req_429":
                 return self.reply(429, {"detail": "Too many requests"}, {"Retry-After": "60"})
             if sc == "req_botmissing":
+                # Cabinet behaviour since 29.09.2026: the token is issued and
+                # only bot_username comes back empty, so the site route lives.
+                return self.reply(200, {"token": "t" * 32, "bot_username": "", "expires_in": 300})
+            if sc == "req_botmissing_legacy":
                 return self.reply(503, {"detail": "Bot not configured"})
             ttl = 6 if sc == "timeout" else 300
             return self.reply(200, {"token": "t" * 32, "bot_username": "SlavaNetBot", "expires_in": ttl})
