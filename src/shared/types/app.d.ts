@@ -145,9 +145,11 @@ interface SubscriptionUserInfo {
   expire: number
 }
 
-type ConnectStatus = 'opening' | 'redeeming' | 'importing' | 'done' | 'failed'
+type ConnectStatus = 'requesting' | 'waiting' | 'fetching' | 'importing' | 'done' | 'failed'
 
 interface ConnectStatusEvent {
   status: ConnectStatus
   message?: string
+  // Telegram link, so the screen can offer it again if the browser swallowed it
+  link?: string
 }

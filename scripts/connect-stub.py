@@ -1,0 +1,71 @@
+import http.server, socketserver, json
+
+state = {"scenario": "happy", "polls": 0, "hits": 0}
+
+SUB_OK = {"has_subscription": True, "subscription": {
+    "subscription_url": "https://sub.example.invalid/abc", "is_active": True,
+    "is_expired": False, "status": "active", "tariff_name": "Тариф Про"}}
+
+class H(http.server.BaseHTTPRequestHandler):
+    def reply(self, code, obj, headers=None, raw=None):
+        body = raw if raw is not None else json.dumps(obj).encode()
+        self.send_response(code)
+        self.send_header("content-type", "text/html" if raw else "application/json")
+        self.send_header("content-length", str(len(body)))
+        for k, v in (headers or {}).items(): self.send_header(k, v)
+        self.end_headers(); self.wfile.write(body)
+
+    def do_POST(self):
+        n = int(self.headers.get("content-length") or 0)
+        body = self.rfile.read(n) if n else b""
+        sc = state["scenario"]
+        if not self.path.startswith("/__"): state["hits"] += 1
+        if self.path == "/__stats":
+            return self.reply(200, {"hits": state["hits"]})
+        if self.path == "/__scenario":
+            state["scenario"] = json.loads(body)["scenario"]; state["polls"] = 0
+            return self.reply(200, {"ok": True})
+        if self.path.endswith("/deeplink/request"):
+            if sc == "req_429":
+                return self.reply(429, {"detail": "Too many requests"}, {"Retry-After": "60"})
+            if sc == "req_botmissing":
+                return self.reply(503, {"detail": "Bot not configured"})
+            ttl = 6 if sc == "timeout" else 300
+            return self.reply(200, {"token": "t" * 32, "bot_username": "SlavaNetBot", "expires_in": ttl})
+        if self.path.endswith("/deeplink/poll"):
+            state["polls"] += 1; p = state["polls"]
+            if sc == "timeout": return self.reply(202, {"detail": "Waiting for confirmation"})
+            if sc == "poll_gone": return self.reply(410, {"detail": "Token expired or not found"})
+            if sc == "poll_forbidden": return self.reply(403, {"detail": "Account is deactivated"})
+            if sc == "poll_422_array":
+                return self.reply(422, {"detail": [{"loc": ["body", "token"], "msg": "too short", "type": "value_error"}]})
+            if sc == "poll_500_html":
+                return self.reply(500, None, raw=b"<html><body>Internal Server Error</body></html>")
+            if sc == "poll_429_recover" and p <= 2:
+                return self.reply(429, {"detail": "Too many requests"}, {"Retry-After": "1"})
+            if p < 3 and sc in ("happy", "no_sub", "revoked", "expired"):
+                return self.reply(202, {"detail": "Waiting for confirmation"})
+            return self.reply(200, {"access_token": "acc", "refresh_token": "ref",
+                                    "token_type": "bearer", "expires_in": 900, "user": {"id": 1}})
+        return self.reply(404, {"detail": "not found"})
+
+    def do_GET(self):
+        sc = state["scenario"]
+        state["hits"] += 1
+        if self.path.endswith("/cabinet/subscription"):
+            if sc == "no_sub": return self.reply(200, {"has_subscription": False, "subscription": None})
+            if sc == "revoked":
+                d = json.loads(json.dumps(SUB_OK)); d["subscription"]["subscription_url"] = ""
+                return self.reply(200, d)
+            if sc == "expired":
+                d = json.loads(json.dumps(SUB_OK)); d["subscription"]["is_expired"] = True
+                d["subscription"]["is_active"] = False; d["subscription"]["status"] = "expired"
+                return self.reply(200, d)
+            return self.reply(200, SUB_OK)
+        return self.reply(404, {"detail": "not found"})
+
+    def log_message(self, *a): pass
+
+socketserver.TCPServer.allow_reuse_address = True
+with socketserver.TCPServer(("127.0.0.1", 8899), H) as s:
+    print("cabinet stub up", flush=True); s.serve_forever()

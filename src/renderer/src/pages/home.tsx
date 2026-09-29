@@ -120,14 +120,18 @@ const Home: React.FC = () => {
     setShowEditModal(true)
   }
 
-  // One-click flow: the main process opens the cabinet in the browser and
-  // reports back over 'subscription-connect-status'. There is deliberately no
-  // timeout here — the waiting card always offers Cancel and the manual link,
-  // so the user is never stuck waiting on us.
+  // One-click flow: the main process opens Telegram, waits for the person to
+  // confirm there, then fetches the subscription. It reports every step over
+  // 'subscription-connect-status'. The card always offers Cancel and the manual
+  // link, so nobody is stuck waiting on us.
   const [connectStatus, setConnectStatus] = useState<ConnectStatus | null>(null)
   const [connectError, setConnectError] = useState<string | null>(null)
+  const [connectLink, setConnectLink] = useState<string | null>(null)
   const connectBusy =
-    connectStatus === 'opening' || connectStatus === 'redeeming' || connectStatus === 'importing'
+    connectStatus === 'requesting' ||
+    connectStatus === 'waiting' ||
+    connectStatus === 'fetching' ||
+    connectStatus === 'importing'
 
   useEffect(() => {
     return window.electron.ipcRenderer.on(
@@ -135,13 +139,15 @@ const Home: React.FC = () => {
       (_event, payload: ConnectStatusEvent) => {
         setConnectStatus(payload.status)
         setConnectError(payload.status === 'failed' ? (payload.message ?? null) : null)
+        if (payload.link) setConnectLink(payload.link)
       }
     )
   }, [])
 
   const handleConnect = async (): Promise<void> => {
     setConnectError(null)
-    setConnectStatus('opening')
+    setConnectLink(null)
+    setConnectStatus('requesting')
     try {
       await startSubscriptionConnect()
     } catch (e) {
@@ -154,6 +160,7 @@ const Home: React.FC = () => {
     await cancelSubscriptionConnect()
     setConnectStatus(null)
     setConnectError(null)
+    setConnectLink(null)
   }
 
   const trafficInfo = useTrafficStore((s) => s.traffic)
@@ -309,17 +316,31 @@ const Home: React.FC = () => {
             {connectBusy ? (
               <>
                 <Spinner className="size-16 text-muted-foreground" />
-                <h2 className="text-xl font-bold text-foreground">
-                  {connectStatus === 'opening'
-                    ? t('pages.home.connectWaiting')
-                    : connectStatus === 'redeeming'
-                      ? t('pages.home.connectRedeeming')
-                      : t('pages.home.connectImporting')}
+                <h2 className="text-xl font-bold text-foreground text-center text-balance">
+                  {connectStatus === 'requesting'
+                    ? t('pages.home.connectRequesting')
+                    : connectStatus === 'waiting'
+                      ? t('pages.home.connectWaiting')
+                      : connectStatus === 'fetching'
+                        ? t('pages.home.connectFetching')
+                        : t('pages.home.connectImporting')}
                 </h2>
-                {connectStatus === 'opening' && (
-                  <p className="text-sm font-medium text-muted-foreground text-center">
-                    {t('pages.home.connectWaitingHint')}
-                  </p>
+                {connectStatus === 'waiting' && (
+                  <>
+                    <p className="text-sm font-medium text-muted-foreground text-center text-balance">
+                      {connectError ?? t('pages.home.connectWaitingHint')}
+                    </p>
+                    {/* Telegram may fail to come to the front, or the person
+                        may close it by accident — let them reopen the link. */}
+                    {connectLink && (
+                      <button
+                        onClick={() => window.open(connectLink)}
+                        className="text-xs text-foreground underline underline-offset-2 hover:opacity-80 transition-opacity"
+                      >
+                        {t('pages.home.connectOpenTelegram')}
+                      </button>
+                    )}
+                  </>
                 )}
                 <button
                   onClick={handleCancelConnect}

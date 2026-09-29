@@ -232,11 +232,13 @@ export default {
   pages: {
     home: {
       connectTitle: '尚未添加订阅',
-      connectDescription: '点击按钮，网站会打开，登录后订阅将自动添加。',
+      connectDescription: '点击按钮，Telegram 会打开，确认后订阅将自动添加。',
       connectButton: '添加订阅',
-      connectWaiting: '正在等待浏览器',
-      connectWaitingHint: '请在网站上完成登录，此窗口可以保持打开。',
-      connectRedeeming: '正在获取订阅',
+      connectRequesting: '正在准备登录',
+      connectWaiting: '请在 Telegram 中确认登录',
+      connectWaitingHint: 'Telegram 已打开。请点击「是，登录」后返回。',
+      connectOpenTelegram: '再次打开 Telegram',
+      connectFetching: '正在获取订阅',
       connectImporting: '正在添加订阅',
       connectFailed: '无法添加订阅',
       connectRetry: '重试',

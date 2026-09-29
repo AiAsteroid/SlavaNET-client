@@ -18,7 +18,7 @@ import { existsSync, writeFileSync } from 'fs'
 import { exePath, taskDir } from './utils/dirs'
 import { showFloatingWindow } from './resolve/floatingWindow'
 import { safeSend } from './utils/safeSend'
-import { connectErrorMessage, consumePendingState, redeemTicket } from './resolve/connect'
+import { runSubscriptionConnect } from './resolve/connect'
 import { getAppConfigSync } from './config/app'
 import { declineElevation, ELEVATION_DECLINED_ARG } from './utils/elevation'
 import { t } from './utils/i18n'
@@ -377,8 +377,20 @@ app.whenReady().then(async () => {
   })
 })
 
-function sendConnectStatus(status: ConnectStatus, message?: string): void {
-  safeSend(mainWindow, 'subscription-connect-status', { status, message })
+function sendConnectStatus(progress: ConnectStatusEvent): void {
+  safeSend(mainWindow, 'subscription-connect-status', progress)
+}
+
+// Drives the whole cabinet round trip and imports what comes back. Errors are
+// reported on the card the user is already looking at, not only in a dialog.
+export async function startSubscriptionConnect(): Promise<void> {
+  try {
+    const { url, name } = await runSubscriptionConnect(sendConnectStatus)
+    sendConnectStatus({ status: 'importing' })
+    await importSubscription(url, name)
+  } catch (e) {
+    sendConnectStatus({ status: 'failed', message: e instanceof Error ? e.message : `${e}` })
+  }
 }
 
 // Shared by both deep link hosts. Reports the HWID limit through its own screen
@@ -396,15 +408,15 @@ async function importSubscription(
     })
     safeSend(mainWindow, 'profileConfigUpdated')
     new Notification({ title: t('notification.profileImportSuccess') }).show()
-    sendConnectStatus('done')
+    sendConnectStatus({ status: 'done' })
   } catch (e) {
     const hwidLimitMatch = `${e}`.match(/HWID_LIMIT:(.*)/)
     if (hwidLimitMatch) {
-      sendConnectStatus('failed', t('error.connectDeviceLimit'))
+      sendConnectStatus({ status: 'failed', message: t('error.connectDeviceLimit') })
       safeSend(mainWindow, 'show-hwid-limit-error', hwidLimitMatch[1].trim())
       return
     }
-    sendConnectStatus('failed', `${e}`)
+    sendConnectStatus({ status: 'failed', message: `${e}` })
     showError(t('dialog.profileImportFailed'), `${sourceUrl ?? profileUrl}\n${e}`)
   }
 }
@@ -413,51 +425,15 @@ async function handleDeepLink(url: string): Promise<void> {
   if (!isDeepLink(url)) return
 
   const urlObj = new URL(url)
-  const state = urlObj.searchParams.get('state')
 
   switch (urlObj.host) {
-    // Round trip started by the "Add subscription" button: the cabinet hands
-    // back a one-time ticket, never the subscription link itself.
-    case 'connect': {
-      if (!consumePendingState(state)) {
-        sendConnectStatus('failed', t('error.connectStateMismatch'))
-        showError(t('dialog.profileImportFailed'), t('error.connectStateMismatch'))
-        return
-      }
-      const ticket = urlObj.searchParams.get('ticket')
-      if (!ticket) {
-        sendConnectStatus('failed', connectErrorMessage())
-        showError(t('dialog.profileImportFailed'), connectErrorMessage())
-        return
-      }
-      await showMainWindow()
-      sendConnectStatus('redeeming')
-      let redeemed: { url: string; name?: string }
-      try {
-        redeemed = await redeemTicket(ticket)
-      } catch (e) {
-        sendConnectStatus('failed', `${e instanceof Error ? e.message : e}`)
-        showError(t('dialog.profileImportFailed'), `${e instanceof Error ? e.message : e}`)
-        return
-      }
-      sendConnectStatus('importing')
-      await importSubscription(redeemed.url, redeemed.name, url)
-      break
-    }
+    // Links handed to the user elsewhere — the subscription page, support —
+    // so the source is unverified and the import is always confirmed first.
     case 'install-config': {
       const profileUrl = urlObj.searchParams.get('url')
       const profileName = urlObj.searchParams.get('name')
       if (!profileUrl) {
         showError(t('dialog.profileImportFailed'), `${url}\n${t('error.missingUrlParam')}`)
-        return
-      }
-      // A callback carrying our own pending state is a link we asked for, so it
-      // imports without a prompt. Anything else may have been handed to the
-      // user by someone else and still needs confirming.
-      if (consumePendingState(state)) {
-        await showMainWindow()
-        sendConnectStatus('importing')
-        await importSubscription(profileUrl, profileName, url)
         return
       }
       const confirmed = await showProfileInstallConfirm(profileUrl, profileName)

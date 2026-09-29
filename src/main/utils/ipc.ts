@@ -23,11 +23,7 @@ import {
   restartMihomoConnections
 } from '../core/mihomoApi'
 import { checkAutoRun, disableAutoRun, enableAutoRun } from '../sys/autoRun'
-import {
-  cancelPendingConnect,
-  hasPendingConnect,
-  startSubscriptionConnect
-} from '../resolve/connect'
+import { cancelSubscriptionConnect, isSubscriptionConnectRunning } from '../resolve/connect'
 import {
   getAppConfig,
   patchAppConfig,
@@ -100,6 +96,7 @@ import {
   setNotQuitDialog,
   showError,
   showMainWindow,
+  startSubscriptionConnect,
   triggerMainWindow
 } from '..'
 import {
@@ -239,9 +236,13 @@ export function registerIpcMainHandlers(): void {
     ipcErrorWrapper(downloadAndInstallUpdate)(version)
   )
   ipcMain.handle('checkUpdate', ipcErrorWrapper(checkUpdate))
-  ipcMain.handle('startSubscriptionConnect', ipcErrorWrapper(startSubscriptionConnect))
-  ipcMain.handle('cancelSubscriptionConnect', () => cancelPendingConnect())
-  ipcMain.handle('hasPendingSubscriptionConnect', () => hasPendingConnect())
+  // Deliberately not awaited: the cabinet round trip waits on a human and can
+  // take minutes. The renderer follows it through 'subscription-connect-status'.
+  ipcMain.handle('startSubscriptionConnect', () => {
+    void startSubscriptionConnect()
+  })
+  ipcMain.handle('cancelSubscriptionConnect', () => cancelSubscriptionConnect())
+  ipcMain.handle('hasPendingSubscriptionConnect', () => isSubscriptionConnectRunning())
   ipcMain.handle('cancelUpdate', ipcErrorWrapper(cancelUpdate))
   ipcMain.handle('getVersion', () => app.getVersion())
   ipcMain.handle('platform', () => process.platform)

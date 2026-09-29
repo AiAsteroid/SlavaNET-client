@@ -158,11 +158,13 @@ export default {
   pages: {
     home: {
       connectTitle: 'Подписка не подключена',
-      connectDescription: 'Нажмите кнопку — откроется сайт, вы войдёте, и подписка добавится сама.',
+      connectDescription: 'Нажмите кнопку — откроется Telegram, подтвердите вход, и подписка добавится сама.',
       connectButton: 'Добавить подписку',
-      connectWaiting: 'Ждём ответа из браузера',
-      connectWaitingHint: 'Завершите вход на сайте. Это окно можно не закрывать.',
-      connectRedeeming: 'Получаем подписку',
+      connectRequesting: 'Готовим вход',
+      connectWaiting: 'Подтвердите вход в Telegram',
+      connectWaitingHint: 'Мы открыли Telegram. Нажмите там «Да, войти» — и возвращайтесь.',
+      connectOpenTelegram: 'Открыть Telegram ещё раз',
+      connectFetching: 'Получаем подписку',
       connectImporting: 'Добавляем подписку',
       connectFailed: 'Не удалось добавить подписку',
       connectRetry: 'Попробовать снова',

@@ -158,11 +158,13 @@ export default {
     home: {
       connectTitle: 'No subscription yet',
       connectDescription:
-        'Press the button — the site opens, you sign in, and the subscription is added for you.',
+        'Press the button — Telegram opens, you confirm, and the subscription is added for you.',
       connectButton: 'Add subscription',
-      connectWaiting: 'Waiting for the browser',
-      connectWaitingHint: 'Finish signing in on the site. You can leave this window open.',
-      connectRedeeming: 'Fetching the subscription',
+      connectRequesting: 'Preparing sign-in',
+      connectWaiting: 'Confirm the sign-in in Telegram',
+      connectWaitingHint: 'Telegram is open. Tap “Yes, sign in” there and come back.',
+      connectOpenTelegram: 'Open Telegram again',
+      connectFetching: 'Fetching the subscription',
       connectImporting: 'Adding the subscription',
       connectFailed: 'Could not add the subscription',
       connectRetry: 'Try again',
