@@ -1,32 +1,27 @@
 import { toast } from 'sonner'
-import BasePage from '@renderer/components/base/base-page'
-import ProxyName from '@renderer/components/base/proxy-name'
+import TitleStrip from '@renderer/components/shell/title-strip'
+import ServerList from '@renderer/components/connect/server-list'
 import { useAppConfig } from '@renderer/hooks/use-app-config'
 import { useControledMihomoConfig } from '@renderer/hooks/use-controled-mihomo-config'
 import { useProfileConfig } from '@renderer/hooks/use-profile-config'
-import { useGroups } from '@renderer/hooks/use-groups'
 import { triggerSysProxy, updateTrayIcon, mihomoHotReloadConfig } from '@renderer/utils/ipc'
 import { useTranslation } from 'react-i18next'
 import { memo, useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import dayjs from 'dayjs'
-import Power from '@renderer/assets/on_icon.svg'
-import Pause from '@renderer/assets/pause_icon.svg'
 import {
   InfinityIcon,
-  ChevronRight,
-  Globe,
   ArrowUp,
   ArrowDown,
   RefreshCcw,
   CalendarClock,
-  CreditCard
+  CreditCard,
+  Power,
+  Pause
 } from 'lucide-react'
-import { SiTelegram } from 'react-icons/si'
 import EditInfoModal from '@renderer/components/profiles/edit-info-modal'
 import SubscriptionEmptyState from '@renderer/components/profiles/subscription-empty-state'
-import { Spinner } from '@renderer/components/ui/spinner'
 import { CharacterMorph } from '@renderer/components/ui/character-morph'
+import { cn } from '@renderer/lib/utils'
 import { calcTraffic } from '@renderer/utils/calc'
 import { useTrafficStore } from '@renderer/store/traffic-store'
 
@@ -37,7 +32,7 @@ function formatBytes(bytes: number): string {
   return `${(bytes / Math.pow(1024, i)).toFixed(i > 1 ? 1 : 0)} ${units[i]}`
 }
 
-// Days left at which the stats block is replaced by the renewal notice
+// Days left at which the subscription row turns red and offers renewal
 const EXPIRY_WARNING_DAYS = 3
 
 // Module-level variable: persists across component mounts/unmounts
@@ -77,6 +72,22 @@ const ConnectedTimer = memo(({ active }: { active: boolean }) => {
 })
 ConnectedTimer.displayName = 'ConnectedTimer'
 
+// Экран «Подключение» — единственный экран, на котором человек проводит время.
+//
+// Владелец выбрал вариант «один экран»: сверху кнопка со статусом, под ней одна
+// тонкая строка подписки, а всё остальное место отдано списку серверов, потому
+// что выбор узла — это то, зачем сюда заходят чаще всего. Поэтому на кнопку и
+// подписку тратится фиксированная высота, а растёт только список.
+//
+// ⚠️ Полосу из трёх колонок («Трафика осталось / Дней осталось / Истекает»),
+// объявление провайдера, строку выбора узла с шевроном и ссылку «Поддержка»
+// убрали осознанно: втроём они занимали весь экран ради данных, которые смотрят
+// раз в месяц. Данные не потеряны — цифры сжаты в одну строку, остальное ушло в
+// подсказку строки и в раздел «Ещё».
+//
+// ⚠️ Логика включения, выбор режима tun/sysproxy, таймер, подсчёт трафика и
+// предупреждение об окончании подписки перенесены без изменений поведения: это
+// работающая часть, менялась только оболочка вокруг неё.
 const Home: React.FC = () => {
   const { t } = useTranslation()
   const { appConfig, patchAppConfig } = useAppConfig()
@@ -93,8 +104,6 @@ const Home: React.FC = () => {
   const sysProxyDisabled = mixedPort == 0
 
   const { profileConfig, addProfileItem } = useProfileConfig()
-  const { groups } = useGroups()
-  const navigate = useNavigate()
   const hasProfiles = (profileConfig?.items?.length ?? 0) > 0
   const [showEditModal, setShowEditModal] = useState(false)
   const [editingItem, setEditingItem] = useState<ProfileItem | null>(null)
@@ -197,24 +206,47 @@ const Home: React.FC = () => {
       ? t('pages.home.subscriptionExpiringToday')
       : t('pages.home.subscriptionExpiring', { count: daysRemaining })
 
-  const firstGroup = groups?.[0]
-  const supportUrl = currentProfile?.supportUrl
-  const supportLinkInfo = useMemo(() => {
-    if (!supportUrl) return null
-    try {
-      const parsed = new URL(supportUrl)
-      const normalized = `${parsed.hostname}${parsed.pathname}`.toLowerCase()
-      return {
-        href: parsed.toString(),
-        isTelegram:
-          parsed.protocol === 'tg:' ||
-          normalized.includes('t.me') ||
-          normalized.includes('telegram')
-      }
-    } catch {
-      return null
+  // Строка подписки высотой 44 не вмещает ни объявление провайдера, ни три
+  // подписанных цифры. Они не выброшены: полный текст висит подсказкой строки,
+  // так что «сколько осталось» и «что пишет провайдер» по-прежнему доступны, но
+  // не занимают пол-экрана.
+  const rowTooltip = useMemo(() => {
+    if (!currentProfile) return undefined
+    const lines: string[] = [currentProfile.name]
+    if (subscription) {
+      lines.push(
+        `${t('pages.home.trafficRemaining')} ${
+          trafficTotal > 0 ? formatBytes(trafficRemaining) : t('pages.home.unlimited')
+        }`
+      )
+      lines.push(
+        `${t('pages.home.daysRemaining')} ${
+          expireTimestamp > 0 ? daysRemaining : t('pages.home.unlimited')
+        }`
+      )
+      lines.push(`${t('pages.home.expires')} ${expireDate}`)
     }
-  }, [supportUrl])
+    if (showExpiryNotice) {
+      lines.push(
+        isExpired
+          ? t('pages.home.subscriptionExpiredHint')
+          : t('pages.home.subscriptionExpiringHint', { date: expireDate })
+      )
+    }
+    if (currentProfile.announce) lines.push(currentProfile.announce)
+    return lines.join('\n')
+  }, [
+    currentProfile,
+    subscription,
+    trafficTotal,
+    trafficRemaining,
+    expireTimestamp,
+    daysRemaining,
+    expireDate,
+    showExpiryNotice,
+    isExpired,
+    t
+  ])
 
   const onValueChange = async (enable: boolean): Promise<void> => {
     setLoading(true)
@@ -258,10 +290,35 @@ const Home: React.FC = () => {
     }
   }
 
+  const refreshButton =
+    currentProfile?.type === 'remote' ? (
+      <button
+        type="button"
+        onClick={handleUpdateProfile}
+        disabled={updating}
+        aria-label={t('common.update')}
+        title={t('common.update')}
+        aria-busy={updating}
+        className="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-lg text-muted-foreground outline-none transition-colors hover:bg-accent/50 hover:text-foreground focus-visible:ring-2 focus-visible:ring-[color:var(--sn-accent)] disabled:pointer-events-none disabled:opacity-40"
+      >
+        <RefreshCcw className={cn('size-3.5', updating && 'animate-spin')} />
+      </button>
+    ) : null
+
   return (
-    <BasePage>
+    // --sn-accent и --sn-on живут на корне экрана: зелёный «включено» и синий
+    // акцент заданы решением владельца литералами, общего токена под них в
+    // @theme нет. Появится — менять здесь в одном месте.
+    <div className="flex h-full min-h-0 flex-col overflow-hidden [--sn-accent:#2563eb] [--sn-on:#22c55e] dark:[--sn-accent:#3b82f6]">
+      {/* Заголовка на корневом экране нет: полоса нужна только чтобы тащить окно
+          и не дать содержимому залезть под системный светофор. */}
+      <TitleStrip />
+
       {!hasProfiles ? (
-        <div className="h-full w-full flex items-center justify-center">
+        <div
+          className="flex min-h-0 flex-1 items-center justify-center px-5"
+          style={{ paddingBottom: 'var(--nav-space)' }}
+        >
           <SubscriptionEmptyState onManual={handleAddProfile} guideAnchor />
           {showEditModal && editingItem && (
             <EditInfoModal
@@ -280,217 +337,222 @@ const Home: React.FC = () => {
           )}
         </div>
       ) : (
-        <div className="flex flex-col h-full px-2 pb-2 gap-3">
-          {/* Profile card */}
-          {currentProfile && (
-            <div className="rounded-2xl border border-stroke bg-card/50 backdrop-blur-xl p-4">
-              <div
-                data-guide="home-profile-header"
-                className="flex items-center justify-center gap-3"
-              >
-                {currentProfile.logo && (
-                  <img
-                    src={currentProfile.logo}
-                    alt=""
-                    className="w-10 h-10 rounded-full"
-                    onError={(e) => {
-                      ;(e.target as HTMLImageElement).style.display = 'none'
-                    }}
-                  />
-                )}
-                <span className="font-medium text-base">{currentProfile.name}</span>
-                {currentProfile.type === 'remote' && (
-                  <button
-                    onClick={handleUpdateProfile}
-                    disabled={updating}
-                    className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors disabled:opacity-50 cursor-pointer"
-                  >
-                    <RefreshCcw className={`size-4 ${updating ? 'animate-spin' : ''}`} />
-                  </button>
-                )}
-              </div>
-              {currentProfile.announce && (
-                <div
-                  data-guide="home-profile-announce"
-                  className="text-sm font-medium text-center mt-2 whitespace-pre-line"
-                >
-                  {currentProfile.announce}
-                </div>
-              )}
-            </div>
-          )}
-          {/* Subscription expiry notice — replaces the stats block near the end of the period */}
-          {subscription && showExpiryNotice ? (
-            <div
-              role="status"
-              className="rounded-2xl border border-stroke bg-card/50 backdrop-blur-xl p-4"
-            >
-              <div className="flex flex-col items-center text-center">
-                <div className="flex items-center justify-center gap-2.5">
-                  <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-destructive/15 text-destructive">
-                    <CalendarClock className="size-5" aria-hidden />
-                  </div>
-                  <p className="text-base font-semibold leading-snug text-destructive">
-                    {expiryTitle}
-                  </p>
-                </div>
-                <p className="mt-2 text-xs text-muted-foreground text-balance">
-                  {isExpired
-                    ? t('pages.home.subscriptionExpiredHint')
-                    : t('pages.home.subscriptionExpiringHint', { date: expireDate })}
-                </p>
-              </div>
-              {renewAction && (
-                <button
-                  type="button"
-                  onClick={() => open(renewAction.url)}
-                  className="mt-3 flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-stroke-power-on bg-gradient-start-power-on/50 px-4 text-sm font-semibold text-foreground transition-colors hover:bg-gradient-start-power-on/40 active:scale-[0.99] cursor-pointer"
-                >
-                  <CreditCard className="size-4 shrink-0" aria-hidden />
-                  <span className="truncate">{renewAction.label}</span>
-                </button>
-              )}
-            </div>
-          ) : (
-            subscription && (
-              <div className="grid grid-cols-[1fr_auto_1fr_auto_1fr] items-center rounded-2xl border border-stroke bg-card/50 backdrop-blur-xl p-1">
-                <div className="flex flex-col items-center py-2 px-1">
-                  <span className="text-sm text-foreground">
-                    {t('pages.home.trafficRemaining')}
-                  </span>
-                  <span className="font-bold text-base mt-0.5">
-                    {trafficTotal > 0 ? formatBytes(trafficRemaining) : <InfinityIcon />}
-                  </span>
-                </div>
-                <div className="h-8 w-px bg-stroke" />
-                <div className="flex flex-col items-center py-2 px-1">
-                  <span className="text-sm text-foreground">{t('pages.home.daysRemaining')}</span>
-                  <span className="text-base font-bold mt-0.5">
-                    {expireTimestamp > 0 ? daysRemaining : <InfinityIcon />}
-                  </span>
-                </div>
-                <div className="h-8 w-px bg-stroke" />
-                <div className="flex flex-col items-center py-2 px-1">
-                  <span className="text-sm text-foreground">{t('pages.home.expires')}</span>
-                  <span className="text-base font-bold mt-0.5">{expireDate}</span>
-                </div>
-              </div>
-            )
-          )}
-
-          {/* Connection button */}
-          <div className="flex flex-col grow-3 items-center justify-center min-h-0">
-            <div className="mb-3 flex h-6 items-center justify-center">
+        // min-h-0 на колонке обязателен: без него список серверов растянет
+        // колонку по своему содержимому и прокручиваться начнёт весь экран.
+        // Резерв снизу — под плавающую капсулу; ServerList своего не добавляет.
+        <div
+          className="flex min-h-0 flex-1 flex-col gap-3 px-5"
+          style={{ paddingBottom: 'var(--nav-space)' }}
+        >
+          {/* --- Кнопка включения ------------------------------------------ */}
+          <div className="flex shrink-0 flex-col items-center pt-1">
+            {/* Высота строки статуса зафиксирована всегда: иначе появление
+                таймера и смена текста дёргали бы кнопку по вертикали. */}
+            <div className="flex h-4 items-center justify-center">
               <CharacterMorph
                 texts={[status]}
                 reserveTexts={statusWidthTexts}
                 interval={3000}
-                className="h-6 leading-none text-foreground font-semibold uppercase"
+                className="text-xs font-semibold uppercase leading-none tracking-[0.08em] text-muted-foreground"
               />
             </div>
+
             <button
+              type="button"
               disabled={isDisabled}
               onClick={() => onValueChange(!isSelected)}
               data-guide="home-power-toggle"
-              className="relative group transition-transform active:scale-95 cursor-pointer"
+              aria-pressed={isSelected}
+              aria-busy={loading}
+              aria-label={isSelected ? t('pages.home.connected') : t('pages.home.disconnected')}
+              className="relative mt-3 size-32 cursor-pointer rounded-full outline-none transition-transform active:scale-95 focus-visible:ring-2 focus-visible:ring-[color:var(--sn-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent disabled:pointer-events-none disabled:opacity-60"
             >
+              {/* Выключено — нейтральная заливка с обводкой: красный круг на
+                  macOS читается как «опасно, не нажимай», хотя нажать надо
+                  именно его. Цветом отмечено только включённое состояние. */}
               <div
-                className={`w-32 h-32 rounded-full flex items-center justify-center transition-all duration-300 bg-radial-[at_30%_45%] backdrop-blur-xl border-2 ${
+                className={cn(
+                  'flex size-32 items-center justify-center rounded-full border-2 backdrop-blur-xl transition-colors duration-300',
+                  isSelected ? '' : 'border-stroke bg-card/60 text-foreground'
+                )}
+                style={
                   isSelected
-                    ? 'from-gradient-start-power-on/60 to-gradient-end-power-on/60 border-stroke-power-on'
-                    : 'from-gradient-start-power-off/50 to-gradient-end-power-off/50 border-stroke-power-off'
-                } ${loading ? 'animate-none' : ''}`}
+                    ? {
+                        // Зелёная заливка плотная, а иконка тёмная: белое по
+                        // #22c55e даёт 2.3:1 (об этом же предупреждение в
+                        // main.css у --success-foreground), а полупрозрачная
+                        // зелень по «шампани» выцветает до неразличимой.
+                        borderColor: 'var(--sn-on)',
+                        background:
+                          'radial-gradient(at 30% 45%, var(--sn-on), color-mix(in oklab, var(--sn-on) 76%, #06140b))',
+                        boxShadow: '0 8px 30px color-mix(in oklab, var(--sn-on) 32%, transparent)',
+                        color: '#06140b'
+                      }
+                    : undefined
+                }
               >
-                <div className="relative size-16">
-                  <Spinner
-                    className={`absolute inset-0 m-auto size-16 text-[#FAFAFA] transition-all duration-300 ease-out ${
-                      loading ? 'opacity-100 scale-100' : 'opacity-0 scale-90'
-                    }`}
+                {/* Иконки взяты из lucide вместо прежних svg-файлов: в тех
+                    белый #FAFAFA зашит в stroke, и на светлой «шампани» они
+                    исчезали. currentColor красится темой.
+                    Обе лежат друг на друге в общей рамке и меняются
+                    прозрачностью: иначе кадр переключения дёргал бы размер. */}
+                <div className="relative size-14">
+                  <Pause
+                    className={cn(
+                      'absolute inset-0 size-14 transition-all duration-300 ease-out',
+                      !loading && isSelected ? 'scale-100 opacity-100' : 'scale-90 opacity-0'
+                    )}
+                    strokeWidth={2.2}
+                    aria-hidden
                   />
-                  <img
-                    src={Pause}
-                    alt=""
-                    className={`absolute inset-0 size-16 fill-foreground transition-all duration-300 ease-out ${
-                      !loading && isSelected ? 'opacity-100 scale-100' : 'opacity-0 scale-90'
-                    }`}
-                  />
-                  <img
-                    src={Power}
-                    alt=""
-                    className={`absolute inset-0 size-16 fill-foreground transition-all duration-300 ease-out ${
-                      !loading && !isSelected ? 'opacity-100 scale-100' : 'opacity-0 scale-90'
-                    }`}
+                  <Power
+                    className={cn(
+                      'absolute inset-0 size-14 transition-all duration-300 ease-out',
+                      !loading && !isSelected ? 'scale-100 opacity-100' : 'scale-90 opacity-0'
+                    )}
+                    strokeWidth={2.2}
+                    aria-hidden
                   />
                 </div>
               </div>
+
+              {/* В переходе крутится дуга по краю кнопки, а не спиннер внутри:
+                  иконка остаётся на месте, и видно, что занята именно кнопка.
+                  Длина дуги — четверть окружности 2π·62 ≈ 390. */}
+              {loading && (
+                <svg
+                  viewBox="0 0 128 128"
+                  className="absolute inset-0 size-32 animate-spin"
+                  aria-hidden
+                >
+                  <circle
+                    cx="64"
+                    cy="64"
+                    r="62"
+                    fill="none"
+                    stroke="var(--sn-accent)"
+                    strokeWidth="3"
+                    strokeLinecap="round"
+                    strokeDasharray="97 293"
+                  />
+                </svg>
+              )}
             </button>
-            <div className="mt-3 h-8 flex items-center justify-center">
+
+            {/* Обе строки под кнопкой держат высоту и в выключенном состоянии:
+                они появляются и исчезают прозрачностью, а не потоком. */}
+            <div className="mt-3 flex h-6 items-center justify-center">
               <div
                 aria-hidden={!showConnectedTimer}
-                className={`inline-flex items-center gap-0.5 text-base font-bold text-foreground tabular-nums transition-all duration-300 ease-out ${
-                  showConnectedTimer ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-1'
-                }`}
+                className={cn(
+                  'text-lg font-semibold leading-5 text-foreground tabular-nums transition-all duration-300 ease-out',
+                  showConnectedTimer ? 'translate-y-0 opacity-100' : 'translate-y-1 opacity-0'
+                )}
               >
                 <ConnectedTimer active={isSelected} />
               </div>
             </div>
             <div
               aria-hidden={!showConnectedTimer}
-              className={`mt-2 flex items-center gap-4 tabular-nums transition-all duration-300 ease-out ${
-                showConnectedTimer ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-1'
-              }`}
+              className={cn(
+                'mt-1 flex h-4 items-center gap-3 text-xs tabular-nums text-muted-foreground transition-all duration-300 ease-out',
+                showConnectedTimer ? 'translate-y-0 opacity-100' : '-translate-y-1 opacity-0'
+              )}
             >
-              <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                <ArrowUp className="size-3.5 text-stroke-power-on" />
-                <span>{calcTraffic(trafficInfo.upTotal)}</span>
-              </div>
-              <div className="h-3 w-px bg-stroke" />
-              <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                <ArrowDown className="size-3.5 text-stroke-power-on" />
-                <span>{calcTraffic(trafficInfo.downTotal)}</span>
-              </div>
+              <span className="flex items-center gap-1">
+                <ArrowUp className="size-3 text-[color:var(--sn-on)]" aria-hidden />
+                {calcTraffic(trafficInfo.upTotal)}
+              </span>
+              <span className="h-2.5 w-px bg-stroke" />
+              <span className="flex items-center gap-1">
+                <ArrowDown className="size-3 text-[color:var(--sn-on)]" aria-hidden />
+                {calcTraffic(trafficInfo.downTotal)}
+              </span>
             </div>
           </div>
 
-          {/* Group & Proxy selectors */}
-          {firstGroup && (
-            <div className="flex flex-col items-center mx-auto w-full max-w-3xs max-h-16">
-              <div
-                data-guide="home-group-selector"
-                className="w-full cursor-pointer"
-                onClick={() => navigate('/proxies', { state: { fromHome: true } })}
-              >
-                <div className="flex items-center justify-between h-9 rounded-2xl border border-stroke pl-3 pr-1 py-3 backdrop-blur-xl bg-card/50 transition-colors hover:bg-card/70">
-                  <ProxyName
-                    name={firstGroup.now || firstGroup.name}
-                    size={18}
-                    className="text-sm max-w-52"
-                  />
-                  <ChevronRight />
-                </div>
-              </div>
+          {/* --- Строка подписки ------------------------------------------- */}
+          {currentProfile && (
+            <div
+              data-guide="home-profile-header"
+              role={showExpiryNotice ? 'status' : undefined}
+              title={rowTooltip}
+              className={cn(
+                'flex h-11 shrink-0 items-center gap-2 rounded-xl border px-2.5',
+                'backdrop-blur-xl transition-colors',
+                showExpiryNotice
+                  ? 'border-destructive/40 bg-destructive/10'
+                  : 'border-stroke bg-card/60'
+              )}
+            >
+              {showExpiryNotice ? (
+                <>
+                  <CalendarClock className="size-4 shrink-0 text-destructive" aria-hidden />
+                  <span className="min-w-0 flex-1 truncate text-sm font-medium text-destructive">
+                    {expiryTitle}
+                  </span>
+                  {/* Кнопка продления — единственное действие, которое в этот
+                      момент имеет смысл, поэтому стоит прямо в строке. */}
+                  {renewAction && (
+                    <button
+                      type="button"
+                      onClick={() => open(renewAction.url)}
+                      className="flex h-7 shrink-0 cursor-pointer items-center gap-1.5 rounded-lg border border-destructive/40 px-2 text-xs font-semibold text-destructive outline-none transition-colors hover:bg-destructive/15 focus-visible:ring-2 focus-visible:ring-[color:var(--sn-accent)]"
+                    >
+                      <CreditCard className="size-3.5 shrink-0" aria-hidden />
+                      <span className="max-w-28 truncate">{renewAction.label}</span>
+                    </button>
+                  )}
+                </>
+              ) : (
+                <>
+                  {currentProfile.logo && (
+                    <img
+                      src={currentProfile.logo}
+                      alt=""
+                      className="size-5 shrink-0 rounded-full"
+                      onError={(e) => {
+                        ;(e.target as HTMLImageElement).style.display = 'none'
+                      }}
+                    />
+                  )}
+                  <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
+                    {currentProfile.name}
+                  </span>
+                  {/* Остаток трафика и дней — одной строкой цифр. Бесконечность
+                      значком: «Безлимит» словом в эту ширину не влезает. */}
+                  {subscription && (
+                    <span className="flex shrink-0 items-center gap-1.5 text-xs tabular-nums text-muted-foreground">
+                      {trafficTotal > 0 ? (
+                        <span>{formatBytes(trafficRemaining)}</span>
+                      ) : (
+                        <InfinityIcon className="size-3.5" aria-hidden />
+                      )}
+                      <span className="h-2.5 w-px bg-stroke" />
+                      {/* profile.dayShort — уже существующий короткий «д»,
+                          ровно так же его склеивает карточка профиля
+                          (profile-item.tsx:120). Новый ключ под это не нужен. */}
+                      {expireTimestamp > 0 ? (
+                        <span>
+                          {daysRemaining}
+                          {t('profile.dayShort')}
+                        </span>
+                      ) : (
+                        <InfinityIcon className="size-3.5" aria-hidden />
+                      )}
+                    </span>
+                  )}
+                </>
+              )}
+              {refreshButton}
             </div>
           )}
-          {supportLinkInfo && (
-            <div className="flex justify-center text-sm text-muted-foreground">
-              <button
-                data-guide="home-support-link"
-                type="button"
-                onClick={() => open(supportLinkInfo.href)}
-                className="inline-flex items-center gap-1.5 hover:text-foreground transition-colors cursor-pointer"
-              >
-                {supportLinkInfo.isTelegram ? (
-                  <SiTelegram className="size-4" />
-                ) : (
-                  <Globe className="size-4" />
-                )}
-                <span>{t('pages.profiles.support')}</span>
-              </button>
-            </div>
-          )}
+
+          {/* --- Список серверов ------------------------------------------ */}
+          <ServerList />
         </div>
       )}
-    </BasePage>
+    </div>
   )
 }
 

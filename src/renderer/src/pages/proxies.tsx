@@ -582,7 +582,7 @@ const Proxies: React.FC = () => {
           </div>
         </div>
       ) : (
-        <div ref={scrollContainerRef} className="h-[calc(100vh-58px)]">
+        <div ref={scrollContainerRef} className="h-full">
           <GroupedVirtuoso
             ref={virtuosoRef}
             groupCounts={groupCounts}

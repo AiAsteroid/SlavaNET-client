@@ -1,7 +1,7 @@
 import { toast } from 'sonner'
 import { useTheme } from 'next-themes'
 import React, { useEffect, useRef, useState } from 'react'
-import { NavigateFunction, useLocation, useNavigate, useRoutes } from 'react-router-dom'
+import { NavigateFunction, useNavigate, useRoutes } from 'react-router-dom'
 import './i18n'
 import { useTranslation } from 'react-i18next'
 import routes from '@renderer/routes'
@@ -17,13 +17,9 @@ import {
 import { platform } from '@renderer/utils/init'
 import useSWR from 'swr'
 import ConfirmModal from '@renderer/components/base/base-confirm'
-import { SidebarProvider } from '@renderer/components/ui/sidebar'
-import AppSidebar from '@renderer/components/app-sidebar'
 import UpdateBanner from '@renderer/components/updater/update-banner'
 import HwidLimitAlert from '@renderer/components/profiles/hwid-limit-alert'
-import WindowControls from '@renderer/components/window-controls'
-import mapDark from '@renderer/assets/map_darktheme.svg'
-import mapLight from '@renderer/assets/map_lighttheme.svg'
+import BottomNav from '@renderer/components/shell/bottom-nav'
 import { attachConnectionsStore } from '@renderer/store/connections-store'
 import { attachTrafficStore } from '@renderer/store/traffic-store'
 import { attachLogsStore } from '@renderer/store/logs-store'
@@ -33,6 +29,8 @@ import { attachLoginStore, useLoginStore } from '@renderer/store/login-store'
 import CabinetLoginModal from '@renderer/components/profiles/cabinet-login-modal'
 
 let navigate: NavigateFunction
+
+const isMac = platform === 'darwin'
 
 const App: React.FC = () => {
   const { t } = useTranslation()
@@ -46,11 +44,8 @@ const App: React.FC = () => {
     // kept intact and comes back by flipping this flag.
     showTour = false
   } = appConfig || {}
-  const { setTheme, systemTheme, resolvedTheme } = useTheme()
-  const mapBg = resolvedTheme === 'dark' ? mapDark : mapLight
+  const { setTheme, systemTheme } = useTheme()
   navigate = useNavigate()
-  const location = useLocation()
-  const isHome = location.pathname === '/' || location.pathname.includes('/home')
   const page = useRoutes(routes)
   const { data: latest } = useSWR(
     autoCheckUpdate ? ['checkUpdate'] : undefined,
@@ -74,6 +69,40 @@ const App: React.FC = () => {
       detachUpdater()
       detachCoreLifecycle()
       detachLogin()
+    }
+  }, [])
+
+  // Фон окна отдан нативному материалу (vibrancy), и документ обязан быть
+  // прозрачным — иначе материала не видно и стекло пропадает. Класс ставится
+  // только на macOS: на Windows и Linux материала нет, и прозрачный документ
+  // дал бы чёрное окно.
+  useEffect(() => {
+    if (!isMac) return
+    document.documentElement.classList.add('window-material')
+  }, [])
+
+  // Полный экран: светофора там нет, и держать под него полосу в 52 px значит
+  // оставить сверху пустоту. Событие приходит и при каждой загрузке рендерера,
+  // поэтому начальное состояние отдельным запросом брать не нужно.
+  useEffect(() => {
+    const onFullScreen = (_e: unknown, isFullScreen: boolean): void => {
+      document.documentElement.toggleAttribute('data-fullscreen', isFullScreen)
+    }
+    window.electron.ipcRenderer.on('window-fullscreen', onFullScreen)
+    return (): void => {
+      window.electron.ipcRenderer.removeAllListeners('window-fullscreen')
+    }
+  }, [])
+
+  // ⌘, — стандартное место настроек на macOS. Главный процесс к этому моменту
+  // уже показал окно, нам остаётся только перейти.
+  useEffect(() => {
+    const onOpenSettings = (): void => {
+      navigate('/settings')
+    }
+    window.electron.ipcRenderer.on('open-settings', onOpenSettings)
+    return (): void => {
+      window.electron.ipcRenderer.removeAllListeners('open-settings')
     }
   }, [])
 
@@ -166,28 +195,16 @@ const App: React.FC = () => {
   }
 
   return (
-    <SidebarProvider
-      defaultOpen={false}
-      className="relative w-full h-screen overflow-hidden"
-      style={{ backgroundColor: resolvedTheme === 'dark' ? '#080F16' : '#C5D4F1' }}
-    >
-      <img
-        src={mapBg}
-        alt=""
-        className={`pointer-events-none absolute inset-0 opacity-65 w-full h-full object-cover z-0 transition-[filter] duration-500 ${
-          isHome ? '' : 'blur-3xl'
-        }`}
-      />
+    <div className="relative w-full h-screen flex flex-col overflow-hidden">
       {showQuitConfirm && (
         <ConfirmModal
           title={t('modal.confirmQuit')}
           description={
             <div>
               <p></p>
-              <p className="text-sm text-gray-500 mt-2">{t('modal.quitWarning')}</p>
-              <p className="text-sm text-gray-400 mt-1">
-                {t('modal.quickQuitHint')} {platform === 'darwin' ? '⌘Q' : 'Ctrl+Q'}{' '}
-                {t('modal.canQuitDirectly')}
+              <p className="text-sm text-muted-foreground mt-2">{t('modal.quitWarning')}</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                {t('modal.quickQuitHint')} {isMac ? '⌘Q' : 'Ctrl+Q'} {t('modal.canQuitDirectly')}
               </p>
             </div>
           }
@@ -206,11 +223,11 @@ const App: React.FC = () => {
           title={t('modal.confirmImportProfile')}
           description={
             <div className="max-w-md">
-              <p className="text-sm text-gray-600 mb-2">
+              <p className="text-sm text-muted-foreground mb-2">
                 {t('modal.nameLabel')}
                 {profileInstallData.name || t('common.unnamed')}
               </p>
-              <p className="text-sm text-gray-600 mb-2 truncate">
+              <p className="text-sm text-muted-foreground mb-2 truncate">
                 {t('modal.linkLabel')}
                 {profileInstallData.url}
               </p>
@@ -263,17 +280,17 @@ const App: React.FC = () => {
       )}
       {loginOpen && <CabinetLoginModal onClose={() => setLoginOpen(false)} />}
       <HwidLimitAlert />
-      {platform === 'darwin' && (
-        <div className="fixed top-0.5 -left-1 h-14.25 flex items-center pl-3 z-100 app-drag">
-          <WindowControls />
-        </div>
-      )}
-      <AppSidebar />
       {latest?.version && <UpdateBanner latest={latest} />}
-      <div className="relative z-10 main grow h-full overflow-y-auto">
-        {page}
-      </div>
-    </SidebarProvider>
+
+      {/* Страница сама рисует свою верхнюю полосу и сама прокручивает своё
+          содержимое. Внешней прокрутки тут быть не должно: иначе при низком
+          окне список серверов сожмётся вместо того, чтобы прокручиваться. */}
+      <div className="main relative flex-1 min-h-0 overflow-hidden">{page}</div>
+
+      {/* Капсула одна на документ: второй экземпляр сломал бы переезд
+          активного овала — он держится на общем layoutId. */}
+      <BottomNav />
+    </div>
   )
 }
 

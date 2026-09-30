@@ -50,6 +50,7 @@ const zhCN: LocaleTranslations = {
   menu: {
     about: '关于',
     aboutApp: '关于 SlavaNET',
+    preferences: '设置…',
     hide: '隐藏',
     hideOthers: '隐藏其他',
     showAll: '显示全部',
@@ -212,6 +213,7 @@ const enUS: LocaleTranslations = {
   menu: {
     about: 'About',
     aboutApp: 'About SlavaNET',
+    preferences: 'Settings…',
     hide: 'Hide',
     hideOthers: 'Hide Others',
     showAll: 'Show All',
@@ -374,6 +376,7 @@ const ruRU: LocaleTranslations = {
   menu: {
     about: 'О программе',
     aboutApp: 'О SlavaNET',
+    preferences: 'Настройки…',
     hide: 'Скрыть',
     hideOthers: 'Скрыть остальные',
     showAll: 'Показать все',

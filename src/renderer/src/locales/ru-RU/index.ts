@@ -1,4 +1,16 @@
 export default {
+  shell: {
+    back: 'Назад',
+    navLabel: 'Основные разделы',
+    navConnect: 'Подключение',
+    navMore: 'Ещё',
+  },
+  connect: {
+    servers: 'Серверы',
+    refreshDelays: 'Обновить задержки',
+    noServers: 'Серверов пока нет',
+    allServers: 'Все серверы',
+  },
   common: {
     save: 'Сохранить',
     cancel: 'Отмена',
@@ -156,6 +168,52 @@ export default {
   },
 
   pages: {
+    more: {
+      title: 'Ещё',
+      groups: {
+        subscription: 'Подписка',
+        app: 'Приложение',
+        support: 'Для поддержки',
+      },
+      subscription: {
+        none: 'Подписка не добавлена',
+        expired: 'Истекла',
+        daysLeft_one: '{{count}} день',
+        daysLeft_few: '{{count}} дня',
+        daysLeft_many: '{{count}} дней',
+        update: 'Обновить подписку',
+        cabinet: 'Личный кабинет',
+        support: 'Поддержка',
+      },
+      app: {
+        settings: 'Настройки',
+        routing: 'Режим маршрутизации',
+        routingRule: 'Правила',
+        routingGlobal: 'Глобально',
+        routingDirect: 'Напрямую',
+        servers: 'Все серверы',
+      },
+      support: {
+        diagnostics: 'Диагностика',
+      },
+      diagnostics: {
+        title: 'Диагностика',
+        group: 'Технические экраны',
+        connections: 'Подключения',
+        rules: 'Правила',
+        logs: 'Логи',
+        core: 'Настройки ядра',
+        sysproxy: 'Системный прокси',
+        tun: 'Режим TUN',
+        dns: 'DNS',
+        sniffer: 'Определение доменов',
+        resources: 'Внешние ресурсы',
+      },
+      about: {
+        sourceCode: 'Исходный код',
+        version: 'Версия {{version}}',
+      },
+    },
     home: {
       connectTitle: 'Подписка не подключена',
       connectDescription: 'Войдите в аккаунт — подписка добавится сама.',

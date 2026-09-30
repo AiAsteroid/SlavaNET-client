@@ -1,38 +1,68 @@
 @import 'tailwindcss';
 @custom-variant dark (&:is(.dark *));
 
+/* ============================================================================
+   ПАЛИТРА SlavaNET — плавающее окно.
+   ⚠️ Копия подмножества токенов из main.css. У плавающего окна отдельная точка
+   входа Vite, общего :root с главным окном нет. Правишь палитру в main.css —
+   правь и здесь, иначе шарик над экраном останется в старом сером, пока окно
+   уже в шампани.
+   ========================================================================= */
+
 :root {
-  --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(0.9851 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --stroke: oklch(0.985 0 0);
-  --accent: oklch(0.985 0 0);
-  --gradient-end-power-on: oklch(0.7333 0.2018 150.03);
-  --border: oklch(0.922 0 0);
+  --app-font: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
+
+  --radius-tile: 9px;
+  --radius-control: 10px;
+  --radius-card: 12px;
+  --radius-panel: 16px;
+  --radius-pill: 9999px;
+  --radius: var(--radius-control);
+
+  /* Светлая тема: «шампань». */
+  --background: #f7e7ce;
+  --foreground: #1f1a12;
+  --card: #fef9f0;
+  --card-foreground: #1f1a12;
+  --primary: #2563eb;
+  --primary-foreground: #fef9f0;
+  --muted: #f1e2c6;
+  --muted-foreground: #7d6b48;
+  /* --stroke раньше совпадал с --card (оба #FAFAFA) — рамка шарика на светлой
+     теме была невидима, и он сливался с любым окном под собой. */
+  --stroke: #e2cca3;
+  --accent: #f0dfbf;
+  --gradient-end-power-on: #1f9d57;
+  --border: #e9d6b2;
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.419 0.0614 255.88);
-  --card-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --stroke: oklch(0.4903 0.0593 255.8);
-  --accent: oklch(0.4289 0.0562 254.61);
-  --gradient-end-power-on: oklch(0.6958 0.1883 150.53);
-  --border: oklch(1 0 0 / 10%);
+  --background: #0a0f1a;
+  --foreground: #f1f5f9;
+  --card: #0f172a;
+  --card-foreground: #f1f5f9;
+  --primary: #3b82f6;
+  --primary-foreground: #ffffff;
+  --muted: #1b2437;
+  --muted-foreground: #94a3b8;
+  --stroke: #223049;
+  --accent: #1e293b;
+  --gradient-end-power-on: #16a34a;
+  --border: rgb(241 245 249 / 10%);
 }
 
 @theme inline {
+  --font-sans: var(--app-font);
+
+  --text-xs: 11px;
+  --text-xs--line-height: 13px;
+  --text-sm: 13px;
+  --text-sm--line-height: 16px;
+  --text-base: 15px;
+  --text-base--line-height: 20px;
+  --text-lg: 17px;
+  --text-lg--line-height: 22px;
+
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -45,6 +75,15 @@
   --color-accent: var(--accent);
   --color-gradient-end-power-on: var(--gradient-end-power-on);
   --color-border: var(--border);
+
+  --radius-xs: calc(var(--radius-tile) - 5px);
+  --radius-sm: calc(var(--radius-tile) - 3px);
+  --radius-md: var(--radius-tile);
+  --radius-lg: var(--radius-control);
+  --radius-xl: var(--radius-card);
+  --radius-2xl: var(--radius-panel);
+  --radius-3xl: var(--radius-panel);
+  --radius-4xl: var(--radius-panel);
 }
 
 @layer base {
@@ -63,17 +102,21 @@
 }
 
 .floating-text {
-  font-family:
-    'Microsoft YaHei',
-    system-ui,
-    -apple-system,
-    BlinkMacSystemFont;
+  font-family: var(--app-font);
 }
 
+/* Окно шарика само по себе прозрачное: фон рисует только .floating-bg внутри,
+   иначе вокруг круга появится непрозрачный квадрат. */
 html,
 body {
   background: none !important;
   background-color: transparent !important;
+}
+
+body {
+  font-family: var(--app-font);
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
 }
 
 .app-nodrag {

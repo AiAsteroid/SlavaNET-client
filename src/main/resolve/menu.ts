@@ -1,9 +1,26 @@
 import { app, Menu, shell, dialog } from 'electron'
-import { mainWindow } from '..'
+import { mainWindow, showMainWindow } from '..'
 import { getAppConfig } from '../config'
 import { quitWithoutCore } from '../core/manager'
 import { dataDir, logDir, mihomoCoreDir, mihomoWorkDir } from '../utils/dirs'
 import { t } from '../utils/i18n'
+import { safeSend } from '../utils/safeSend'
+
+// На macOS Command+, жмут не глядя, поэтому пункт обязан работать и когда окно
+// спрятано или выгружено режимом экономии: сначала показываем окно, и только
+// потом стучимся в рендерер.
+async function openSettings(): Promise<void> {
+  await showMainWindow()
+  const win = mainWindow
+  if (!win || win.isDestroyed()) return
+  // Свежесозданное окно ещё грузит разметку и слушателя события пока нет —
+  // событие, посланное сейчас, просто пропадёт.
+  if (win.webContents.isLoading()) {
+    win.webContents.once('did-finish-load', () => safeSend(win, 'open-settings'))
+    return
+  }
+  safeSend(win, 'open-settings')
+}
 
 export async function createApplicationMenu(): Promise<void> {
   if (process.platform !== 'darwin') {
@@ -20,6 +37,14 @@ export async function createApplicationMenu(): Promise<void> {
         {
           label: t('menu.about') + ' ' + 'SlavaNET',
           role: 'about'
+        },
+        { type: 'separator' },
+        {
+          label: t('menu.preferences'),
+          accelerator: 'Command+,',
+          click: () => {
+            openSettings()
+          }
         },
         { type: 'separator' },
         {

@@ -61,7 +61,7 @@ const ProxySettingModal: React.FC<Props> = (props) => {
       }}
     >
       <DialogContent
-        className="flag-emoji sm:max-w-xl max-h-[calc(100vh-120px)] flex flex-col min-h-0"
+        className="flag-emoji sm:max-w-xl max-h-[80vh] flex flex-col min-h-0"
         showCloseButton={false}
       >
         <DialogHeader className="pb-0">

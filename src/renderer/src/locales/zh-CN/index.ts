@@ -1,4 +1,16 @@
 export default {
+  shell: {
+    back: '返回',
+    navLabel: '主要分区',
+    navConnect: '连接',
+    navMore: '更多',
+  },
+  connect: {
+    servers: '服务器',
+    refreshDelays: '刷新延迟',
+    noServers: '暂无服务器',
+    allServers: '所有服务器',
+  },
   common: {
     save: '保存',
     cancel: '取消',
@@ -230,6 +242,50 @@ export default {
   },
 
   pages: {
+    more: {
+      title: '更多',
+      groups: {
+        subscription: '订阅',
+        app: '应用',
+        support: '技术支持',
+      },
+      subscription: {
+        none: '未添加订阅',
+        expired: '已到期',
+        daysLeft_other: '{{count}} 天',
+        update: '更新订阅',
+        cabinet: '个人中心',
+        support: '技术支持',
+      },
+      app: {
+        settings: '设置',
+        routing: '路由模式',
+        routingRule: '规则',
+        routingGlobal: '全局',
+        routingDirect: '直连',
+        servers: '所有服务器',
+      },
+      support: {
+        diagnostics: '诊断',
+      },
+      diagnostics: {
+        title: '诊断',
+        group: '技术页面',
+        connections: '连接',
+        rules: '规则',
+        logs: '日志',
+        core: '内核设置',
+        sysproxy: '系统代理',
+        tun: 'TUN 模式',
+        dns: 'DNS',
+        sniffer: '域名嗅探',
+        resources: '外部资源',
+      },
+      about: {
+        sourceCode: '源代码',
+        version: '版本 {{version}}',
+      },
+    },
     home: {
       connectTitle: '尚未添加订阅',
       connectDescription: '登录账户后，订阅将自动添加。',

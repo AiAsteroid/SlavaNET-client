@@ -762,7 +762,7 @@ const Connections: React.FC = () => {
           )}
         </div>
       </div>
-      <div className="h-[calc(100vh-106px)] mt-px mb-2">
+      <div className="h-full mt-px mb-2">
         {isProcessListView ? (
           filteredProcessGroups.length === 0 ? (
             processesEmptyState

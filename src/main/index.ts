@@ -1,7 +1,17 @@
 import { electronApp, is, optimizer } from '@electron-toolkit/utils'
 import { registerIpcMainHandlers } from './utils/ipc'
 import windowStateKeeper from 'electron-window-state'
-import { app, BrowserWindow, dialog, ipcMain, Menu, Notification, powerMonitor, shell } from 'electron'
+import {
+  app,
+  BrowserWindow,
+  dialog,
+  ipcMain,
+  Menu,
+  nativeTheme,
+  Notification,
+  powerMonitor,
+  shell
+} from 'electron'
 import { addProfileItem, getAppConfig, getProfileConfig, patchControledMihomoConfig } from './config'
 import { quitWithoutCore, startCore, stopCore } from './core/manager'
 import { triggerSysProxy } from './sys/sysproxy'
@@ -585,6 +595,18 @@ function parseFilename(str: string): string {
   }
 }
 
+// Окно появляется раньше, чем рендерер успевает нарисовать свой фон, и без
+// заданного цвета Chromium подставляет белый — отсюда вспышка при каждой
+// перезагрузке рендерера (её делают обработчики did-fail-load и
+// render-process-gone ниже). На macOS фон обязан быть прозрачным, иначе он
+// закроет нативный материал окна; на остальных платформах прозрачности нет,
+// поэтому берём базовый тон выбранной темы.
+function resolveWindowBackground(appTheme: AppTheme = 'system'): string {
+  if (process.platform === 'darwin') return '#00000000'
+  const dark = appTheme === 'system' ? nativeTheme.shouldUseDarkColors : appTheme === 'dark'
+  return dark ? '#0a0f1a' : '#F7E7CE'
+}
+
 export async function createWindow(appConfig?: AppConfig): Promise<void> {
   if (isCreatingWindow) {
     if (createWindowPromise) {
@@ -603,8 +625,11 @@ export async function createWindow(appConfig?: AppConfig): Promise<void> {
     const [mainWindowState] = await Promise.all([
       Promise.resolve(
         windowStateKeeper({
-          defaultWidth: 800,
-          defaultHeight: 700,
+          // Оболочка «один экран»: кнопка, строка подписки и список серверов.
+          // Широкое окно от старой раскладки с сайдбаром растягивало список
+          // в пустую простыню, поэтому размер по умолчанию — вертикальный.
+          defaultWidth: 460,
+          defaultHeight: 720,
           file: 'window-state.json'
         })
       ),
@@ -612,19 +637,44 @@ export async function createWindow(appConfig?: AppConfig): Promise<void> {
         ? createApplicationMenu()
         : Promise.resolve(Menu.setApplicationMenu(null))
     ])
+    // Светофор на macOS рисует система, и 'hiddenInset' — единственный режим,
+    // который отдаёт содержимому всё окно, но оставляет кнопки на месте и
+    // сдвинутыми внутрь по системным отступам (trafficLightPosition не задаём:
+    // свои числа разъедутся с системными в следующей macOS). Рамку при этом
+    // снимать нельзя: frame:false на macOS убирает кнопки вместе с ней.
+    // Windows и Linux остаются на своей рамке — там оболочка рисует всё сама.
+    const nativeTitleBar = process.platform === 'darwin' && !useWindowFrame
+    const titleBarStyle: Electron.BrowserWindowConstructorOptions['titleBarStyle'] = useWindowFrame
+      ? 'default'
+      : nativeTitleBar
+        ? 'hiddenInset'
+        : 'hidden'
+
+    // Фон окна отдан нативному материалу: карты мира на подложке больше нет,
+    // а полупрозрачные поверхности оболочки должны стоять на чём-то живом.
+    // Только darwin — на Windows и Linux этих опций просто нет, и передавать
+    // их туда незачем.
+    const darwinMaterial: Electron.BrowserWindowConstructorOptions =
+      process.platform === 'darwin'
+        ? { vibrancy: 'under-window', visualEffectState: 'followWindow' }
+        : {}
+
     mainWindow = new BrowserWindow({
-      minWidth: 800,
-      minHeight: 600,
+      // Минимум держим по содержимому одного экрана, а не по старой раскладке
+      // с сайдбаром: 800×600 не давали поставить окно узкой полосой у края.
+      minWidth: 420,
+      minHeight: 560,
       width: mainWindowState.width,
       height: mainWindowState.height,
       x: mainWindowState.x,
       y: mainWindowState.y,
       show: false,
-      frame: useWindowFrame,
-      fullscreenable: false,
-      titleBarStyle: useWindowFrame ? 'default' : 'hidden',
+      frame: useWindowFrame || nativeTitleBar,
+      titleBarStyle,
       titleBarOverlay: false,
       autoHideMenuBar: true,
+      backgroundColor: resolveWindowBackground(config.appTheme),
+      ...darwinMaterial,
       ...(process.platform === 'linux' ? { icon: icon } : {}),
       webPreferences: {
         preload: join(__dirname, '../preload/index.js'),
@@ -633,12 +683,27 @@ export async function createWindow(appConfig?: AppConfig): Promise<void> {
       }
     })
     mainWindowState.manage(mainWindow)
-    if (process.platform === 'darwin' && !useWindowFrame) {
-      mainWindow.setWindowButtonVisibility(false)
-    }
     mainWindow.on('maximize', () => {
       mainWindow?.webContents.send('window-maximized')
     })
+    // В полном экране системная полоса и светофор уезжают, и верхняя полоса
+    // перетаскивания вместе с кнопками окна остаётся висеть поверх содержимого
+    // пустым отступом. Рендерер сам её убирает, но узнать о переходе он может
+    // только отсюда.
+    // Спрашиваем именно то окно, к которому подписались: режим экономии
+    // выгружает окно целиком, и к моменту события mainWindow может указывать
+    // уже на другое.
+    const createdWindow = mainWindow
+    const sendFullscreenState = (): void => {
+      if (createdWindow.isDestroyed()) return
+      safeSend(createdWindow, 'window-fullscreen', createdWindow.isFullScreen())
+    }
+    mainWindow.on('enter-full-screen', sendFullscreenState)
+    mainWindow.on('leave-full-screen', sendFullscreenState)
+    // Перезагрузка рендерера (did-fail-load, render-process-gone) начинает
+    // разметку с нуля, и окно в полном экране осталось бы с полосой сверху:
+    // событие перехода к тому моменту давно прошло.
+    mainWindow.webContents.on('did-finish-load', sendFullscreenState)
     mainWindow.on('ready-to-show', async () => {
       const { silentStart = false } = await getAppConfig()
       if (!silentStart) {

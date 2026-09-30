@@ -2,108 +2,203 @@
 @import 'tw-animate-css';
 @custom-variant dark (&:is(.dark *));
 
+/* ============================================================================
+   ПАЛИТРА SlavaNET
+   Решение владельца от 30.09.2026. Значения заданы в hex намеренно: их сверяют
+   глазами с решением, а oklch в переписке не читается.
+
+   ⚠️ Эти же значения продублированы в floating.css и traymenu.css — у плавающего
+   окна и меню в трее отдельные точки входа Vite, общего :root у них с нами нет.
+   Меняешь палитру здесь — меняй и там, иначе на одном экране окажутся два разных
+   SlavaNET: окно в шампани, а трей в старом сером.
+   ========================================================================= */
+
 :root {
-  --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(0.9851 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --stroke-power-off: oklch(0.8245 0.0724 24);
-  --gradient-start-power-off: oklch(0.8962 0.0921 28);
-  --gradient-end-power-off: oklch(0.7065 0.1648 25);
-  --stroke-power-on: oklch(0.9441 0.083 166.12);
-  --gradient-start-power-on: oklch(0.8738 0.2417 149.81);
-  --gradient-end-power-on: oklch(0.7333 0.2018 150.03);
-  --profile-active: oklch(0.9091 0.1523 156.02 / 50.2%);
-  --stroke-profile-active: oklch(0.9647 0.0508 166.71);
-  --profile-inactive: oklch(0.9851 0 0 / 50.2%);
-  --stroke-profile-inactive: oklch(0.956 0.0217 250.21);
-  --stroke: oklch(0.985 0 0);
-  --accent: oklch(0.985 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(0.985 0 0);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
+  /* --- Геометрия оболочки ---------------------------------------------- */
+  /* Верхняя полоса перетаскивания окна: своей строки заголовка у macOS-сборки
+     нет, за окно тянут пустую зону сверху. */
+  --chrome-top: 52px;
+  /* Резерв снизу под плавающую капсулу навигации: 64 высота + 20 отступ от края
+     + 12 воздуха, чтобы последняя строка списка серверов не липла к стеклу. */
+  --nav-space: 96px;
+  /* Резерв слева под СИСТЕМНЫЙ светофор при titleBarStyle 'hiddenInset':
+     отступ группы (12) + её ширина (60 = 14+9+14+9+14) + воздух. Замерено
+     через AppKit на macOS 26.6.2, там 1 pt = 1 px. Только macOS: на других
+     платформах кнопки окна рисуем мы сами и они уходят вправо. */
+  --traffic-lights-width: 84px;
+}
+
+/* В полном экране светофора нет, и полоса, оставленная под него, превращается
+   в пустоту сверху. Обнуляем оба резерва разом — страницы читают переменные и
+   подстраиваются сами, отдельной логики в разметке не нужно. */
+html[data-fullscreen] {
+  --chrome-top: 0px;
+  --traffic-lights-width: 12px;
+
+  /* --- Гарнитура -------------------------------------------------------- */
+  /* Системная лестница macOS. Inter и 'Microsoft YaHei' убраны: первый подменял
+     системный шрифт, второй тянул CJK-метрики в русский текст. sans-serif в
+     конце нужен только для разработки не на маке.
+     Живёт на обычном :root, а не в @theme: на неё ссылаются body и .flag-emoji
+     обычным CSS, а переменные из @theme Tailwind вправе не выкладывать на :root,
+     если ни одна утилита их не задела. */
+  --app-font: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
+
+  /* --- Шкала радиусов --------------------------------------------------- */
+  /* Именованная шкала — источник истины. Ступени rounded-* Tailwind заведены на
+     неё ниже, в @theme inline; отсюда же радиусы берёт обычный CSS этого файла.
+     Обратиться к ним по имени из разметки можно как rounded-(--radius-card). */
+  --radius-tile: 9px;
+  --radius-control: 10px;
+  --radius-card: 12px;
+  --radius-panel: 16px;
+  --radius-pill: 9999px;
+  /* Базовый --radius держим равным радиусу контрола: на него ссылаются
+     input-group и sonner через calc(var(--radius) - 5px). */
+  --radius: var(--radius-control);
+
+  /* --- Светлая тема: «шампань», как в кабинете -------------------------- */
+  --background: #f7e7ce;
+  --foreground: #1f1a12;
+  --card: #fef9f0;
+  --card-foreground: #1f1a12;
+  --popover: #fef9f0;
+  --popover-foreground: #1f1a12;
+  /* Акцент в светлой теме темнее заявленного #3b82f6: по шампани #3b82f6 даёт
+     всего ~3:1, текст ссылок и подписи на нём не читаются. */
+  --primary: #2563eb;
+  --primary-foreground: #fef9f0;
+  --secondary: #f1debe;
+  --secondary-foreground: #1f1a12;
+  --muted: #f1e2c6;
+  --muted-foreground: #7d6b48;
+  /* Поверхность наведения. Раньше --card, --accent и --stroke были одним и тем
+     же #FAFAFA: карточки шли без границ, наведение и фокус не проявлялись вовсе.
+     Теперь все три разведены: --accent темнее и карточки, и фона, поэтому
+     подсветка видна и поверх карточки, и поверх основного фона. */
+  --accent: #f0dfbf;
+  --accent-foreground: #1f1a12;
+  /* Красный/жёлтый/зелёный в светлой теме тоже притемнены: text-destructive и
+     text-warning стоят на шампани (23 и 8 мест), в исходной яркости это 2-3:1. */
+  --destructive: #dc2626;
+  --destructive-foreground: #fef9f0;
+  --success: #15803d;
+  --success-foreground: #fef9f0;
+  --warning: #b45309;
+  --warning-foreground: #fef9f0;
+  /* Три уровня края: общий border, осознанный --stroke на карточках (27 мест)
+     и самый заметный --input у полей ввода. */
+  --border: #e9d6b2;
+  --stroke: #e2cca3;
+  --input: #d9bf8e;
+  --ring: #2563eb;
+
+  /* Кнопка питания и карточки профилей: семейства те же (красное «выключено»,
+     зелёное «включено»), но подобраны под шампань, а не под старый белый фон. */
+  --stroke-power-off: #d98a8a;
+  --gradient-start-power-off: #f4b0ae;
+  --gradient-end-power-off: #e06a66;
+  --stroke-power-on: #5dbe86;
+  --gradient-start-power-on: #4ade80;
+  --gradient-end-power-on: #1f9d57;
+  --profile-active: rgb(21 128 61 / 14%);
+  --stroke-profile-active: #5dbe86;
+  --profile-inactive: rgb(254 249 240 / 60%);
+  --stroke-profile-inactive: #e2cca3;
+
+  /* Сайдбара в новой оболочке нет, но ui/sidebar.tsx остался в дереве и его
+     утилиты вида bg-sidebar собираются вместе с ним. Токены держим живыми,
+     иначе сборка падает на неизвестном классе. */
+  --sidebar: #fef9f0;
+  --sidebar-foreground: #1f1a12;
+  --sidebar-primary: #2563eb;
+  --sidebar-primary-foreground: #fef9f0;
+  --sidebar-accent: #f0dfbf;
+  --sidebar-accent-foreground: #1f1a12;
+  --sidebar-border: #e9d6b2;
+  --sidebar-ring: #2563eb;
+
+  /* Графиков в приложении пока нет — значения оставлены от upstream. */
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
   --chart-3: oklch(0.398 0.07 227.392);
   --chart-4: oklch(0.828 0.189 84.429);
   --chart-5: oklch(0.769 0.188 70.08);
-  --success: oklch(0.627 0.194 149.214);
-  --success-foreground: oklch(1 0 0);
-  --warning: oklch(0.769 0.188 70.08);
-  --warning-foreground: oklch(0.205 0 0);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.419 0.0614 255.88);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --stroke-power-off: oklch(0.5682 0.0961 25);
-  --gradient-start-power-off: oklch(0.7014 0.1722 25);
-  --gradient-end-power-off: oklch(0.3828 0.095 25);
-  --stroke-power-on: oklch(0.7827 0.1797 149.49);
-  --gradient-start-power-on: oklch(0.8738 0.2417 149.81);
-  --gradient-end-power-on: oklch(0.6958 0.1883 150.53);
-  --profile-active: oklch(0.6142 0.167656 150.3773 / 50.2%);
-  --stroke-profile-active: oklch(0.5307 0.0918 150.99);
-  --profile-inactive: oklch(0.419 0.0614 255.88 / 50.2%);
-  --stroke-profile-inactive: oklch(0.4903 0.0593 255.8);
-  --stroke: oklch(0.4903 0.0593 255.8);
-  --accent: oklch(0.4289 0.0562 254.61);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --destructive-foreground: oklch(0.985 0 0);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --success: oklch(0.527 0.194 150.069);
-  --success-foreground: oklch(1 0 0);
-  --warning: oklch(0.769 0.188 70.08);
-  --warning-foreground: oklch(0.205 0 0);
+  --background: #0a0f1a;
+  --foreground: #f1f5f9;
+  --card: #0f172a;
+  --card-foreground: #f1f5f9;
+  --popover: #0f172a;
+  --popover-foreground: #f1f5f9;
+  --primary: #3b82f6;
+  --primary-foreground: #ffffff;
+  --secondary: #1b2437;
+  --secondary-foreground: #f1f5f9;
+  --muted: #1b2437;
+  --muted-foreground: #94a3b8;
+  /* На шаг светлее поверхности: наведение читается и на фоне, и на карточке. */
+  --accent: #1e293b;
+  --accent-foreground: #f1f5f9;
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+  /* Тёмный текст на зелёной и жёлтой плашке: белый по #22c55e даёт 2.3:1. */
+  --success: #22c55e;
+  --success-foreground: #06140b;
+  --warning: #f59e0b;
+  --warning-foreground: #1a1205;
+  /* Общий край полупрозрачный: он ложится и на фон, и на поверхность, и на
+     стекло капсулы — сплошной цвет на всех трёх сразу не сядет. */
+  --border: rgb(241 245 249 / 10%);
+  --stroke: #223049;
+  --input: rgb(241 245 249 / 16%);
+  --ring: #3b82f6;
+
+  --stroke-power-off: #8f3a3a;
+  --gradient-start-power-off: #e25555;
+  --gradient-end-power-off: #5c1a1a;
+  --stroke-power-on: #3ddc7f;
+  --gradient-start-power-on: #4ade80;
+  --gradient-end-power-on: #16a34a;
+  --profile-active: rgb(34 197 94 / 20%);
+  --stroke-profile-active: #2b8a52;
+  --profile-inactive: rgb(30 41 59 / 60%);
+  --stroke-profile-inactive: #223049;
+
+  --sidebar: #0f172a;
+  --sidebar-foreground: #f1f5f9;
+  --sidebar-primary: #3b82f6;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #1e293b;
+  --sidebar-accent-foreground: #f1f5f9;
+  --sidebar-border: rgb(241 245 249 / 10%);
+  --sidebar-ring: #3b82f6;
+
   --chart-1: oklch(0.488 0.243 264.376);
   --chart-2: oklch(0.696 0.17 162.48);
   --chart-3: oklch(0.769 0.188 70.08);
   --chart-4: oklch(0.627 0.265 303.9);
   --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
 }
 
 @theme inline {
+  --font-sans: var(--app-font);
+
+  /* Кегли по системной лестнице macOS вместо табличных 0.75/0.875/1/1.125rem.
+     Ключи Tailwind оставлены прежними, чтобы не править разметку: text-sm —
+     обычный текст (99 мест), text-xs — второстепенный (84), text-base и
+     text-lg — заголовки. */
+  --text-xs: 11px;
+  --text-xs--line-height: 13px;
+  --text-sm: 13px;
+  --text-sm--line-height: 16px;
+  --text-base: 15px;
+  --text-base--line-height: 20px;
+  --text-lg: 17px;
+  --text-lg--line-height: 22px;
+
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -143,10 +238,6 @@
   --color-chart-3: var(--chart-3);
   --color-chart-4: var(--chart-4);
   --color-chart-5: var(--chart-5);
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar-primary: var(--sidebar-primary);
@@ -155,15 +246,48 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Ступени rounded-* уводим на именованную шкалу, чтобы не править 90 классов
+     в компонентах: rounded-md -> плитка, rounded-lg -> контрол,
+     rounded-xl -> карточка, rounded-2xl и выше -> панель.
+     xs и sm — половинные ступени ниже плитки: они стоят на бейджах высотой
+     20px и на kbd, где 9px читаются уже как pill и убивают смысл класса
+     (Badge переопределяет им rounded-full именно чтобы стать прямоугольнее). */
+  --radius-xs: calc(var(--radius-tile) - 5px);
+  --radius-sm: calc(var(--radius-tile) - 3px);
+  --radius-md: var(--radius-tile);
+  --radius-lg: var(--radius-control);
+  --radius-xl: var(--radius-card);
+  --radius-2xl: var(--radius-panel);
+  --radius-3xl: var(--radius-panel);
+  --radius-4xl: var(--radius-panel);
 }
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply border-border;
   }
   body {
     @apply bg-background text-foreground;
   }
+}
+
+body {
+  font-family: var(--app-font);
+  /* Базовый кегль оболочки. Задан на body, а не на html: на html он утянул бы
+     за собой всю rem-шкалу отступов Tailwind и сжал макет на 12%. */
+  font-size: 14px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Фон окна. Пока главный процесс не включил нативный материал, рисуем фон сами.
+   Когда включит — он ставит класс .window-material на <html>, и мы уходим в
+   прозрачность: из-под непрозрачного body материала не видно. */
+html.window-material,
+html.window-material body {
+  background: transparent !important;
 }
 
 @font-face {
@@ -171,10 +295,16 @@
   src: url('./twemoji.ttf');
 }
 
+/* Флаги на отладочных экранах (соединения, правила, логи, модалки прокси) всё
+   ещё рисуются эмодзи, а не картинками, — класс живой, удалять нельзя. */
+.flag-emoji {
+  font-family: var(--app-font), 'Apple Color Emoji', 'twemoji';
+}
+
 .driver-popover {
   background-color: var(--card) !important;
   border: 1px solid var(--stroke) !important;
-  border-radius: 1rem !important;
+  border-radius: var(--radius-panel) !important;
   color: var(--foreground) !important;
   box-shadow:
     0 14px 38px rgb(0 0 0 / 24%),
@@ -185,8 +315,8 @@
 
 .driver-popover-title {
   color: var(--foreground) !important;
-  line-height: 1.35 !important;
-  font-size: 1rem !important;
+  line-height: 22px !important;
+  font-size: 17px !important;
   font-weight: 650 !important;
   letter-spacing: 0.01em;
   padding-right: 26px;
@@ -199,13 +329,12 @@
 .driver-popover-description {
   color: var(--muted-foreground) !important;
   font-size: 13px !important;
-  line-height: 1.55 !important;
+  line-height: 16px !important;
 }
 
 .driver-popover a {
-  color: var(--foreground) !important;
+  color: var(--primary) !important;
   text-decoration: underline !important;
-  text-decoration-color: var(--stroke-power-on) !important;
   text-underline-offset: 2px;
 }
 
@@ -215,7 +344,7 @@
 
 .driver-popover-progress-text {
   color: var(--muted-foreground) !important;
-  font-size: 12px !important;
+  font-size: 11px !important;
 }
 
 .driver-popover-footer {
@@ -233,8 +362,8 @@
   border: 1px solid var(--stroke) !important;
   padding: 0 12px !important;
   height: 32px !important;
-  border-radius: 0.75rem !important;
-  font-size: 12px !important;
+  border-radius: var(--radius-control) !important;
+  font-size: 11px !important;
   font-weight: 600 !important;
   background-color: var(--card) !important;
   transition:
@@ -246,8 +375,8 @@
 .driver-popover-navigation-btns button:hover,
 .driver-popover-navigation-btns button:focus-visible {
   background-color: var(--accent) !important;
-  border-color: var(--stroke-power-on) !important;
-  box-shadow: 0 0 0 2px color-mix(in oklab, var(--stroke-power-on) 42%, var(--card)) !important;
+  border-color: var(--ring) !important;
+  box-shadow: 0 0 0 2px color-mix(in oklab, var(--ring) 42%, transparent) !important;
 }
 
 .driver-popover-prev-btn {
@@ -256,22 +385,15 @@
 
 .driver-popover-next-btn {
   margin-left: 0 !important;
-  color: var(--foreground) !important;
-  border-color: var(--stroke-power-on) !important;
-  background:
-    linear-gradient(
-      135deg,
-      color-mix(in oklab, var(--gradient-start-power-on) 56%, transparent),
-      color-mix(in oklab, var(--gradient-end-power-on) 56%, transparent)
-    ) !important;
+  color: var(--primary-foreground) !important;
+  border-color: var(--primary) !important;
+  background: var(--primary) !important;
 }
 
 .driver-popover-next-btn:hover,
 .driver-popover-next-btn:focus-visible {
-  filter: brightness(1.04);
-  box-shadow:
-    0 0 0 2px color-mix(in oklab, var(--stroke-power-on) 48%, var(--card)),
-    0 8px 20px color-mix(in oklab, var(--gradient-end-power-on) 24%, var(--card)) !important;
+  filter: brightness(1.08);
+  box-shadow: 0 0 0 2px color-mix(in oklab, var(--ring) 48%, transparent) !important;
 }
 
 .driver-popover-footer .driver-popover-btn-disabled {
@@ -284,9 +406,9 @@
   color: var(--muted-foreground) !important;
   background: transparent !important;
   border: 1px solid var(--stroke) !important;
-  border-radius: 6px !important;
+  border-radius: var(--radius-tile) !important;
   padding: 4px 12px !important;
-  font-size: 12px !important;
+  font-size: 11px !important;
   cursor: pointer !important;
   text-shadow: none !important;
   margin-left: auto !important;
@@ -315,6 +437,7 @@
 .driver-popover-arrow-side-right {
   border-right-color: var(--card) !important;
 }
+
 .app-nodrag {
   -webkit-app-region: none;
 }
@@ -347,7 +470,7 @@
 .wc-mac .wc-btn {
   width: 12px;
   height: 12px;
-  border-radius: 50%;
+  border-radius: var(--radius-pill);
   color: transparent;
   transition: all 0.12s ease;
 }
@@ -357,6 +480,8 @@
   height: 6px;
 }
 
+/* Цвета «светофора» системные, из палитры приложения их брать нельзя: macOS
+   рисует их одинаково во всех окнах, и любое отклонение читается как поломка. */
 .wc-mac .wc-close {
   background: #ff5f57;
   box-shadow: inset 0 0 0 0.5px rgba(0, 0, 0, 0.12);
@@ -401,7 +526,7 @@
 .wc-win .wc-btn {
   width: 34px;
   height: 26px;
-  border-radius: calc(var(--radius) - 4px);
+  border-radius: var(--radius-tile);
   color: var(--muted-foreground);
   transition: all 0.12s ease;
 }
@@ -434,64 +559,71 @@
   user-select: text;
 }
 
-*:focus {
+/* ============================================================================
+   Фокус. Раньше кольцо было погашено глобально (*:focus с outline-color:
+   transparent) — приложение становилось непроходимым с клавиатуры. Гасим только
+   мышиный фокус, клавиатурный возвращаем.
+   ========================================================================= */
+:focus:not(:focus-visible) {
   outline: none;
-  outline-width: 0;
-  outline-color: transparent;
 }
 
-.flag-emoji {
-  font-family:
-    system-ui,
-    -apple-system,
-    BlinkMacSystemFont,
-    'Segoe UI',
-    Roboto,
-    Oxygen,
-    Ubuntu,
-    Cantarell,
-    'Open Sans',
-    'Helvetica Neue',
-    sans-serif,
-    'Apple Color Emoji',
-    'twemoji';
+:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
 }
 
+/* Компоненты shadcn рисуют своё кольцо через focus-visible:ring-* (box-shadow).
+   Там системное гасим, иначе на элементе оказывается два кольца подряд. */
+[class*='focus-visible:ring-']:focus-visible {
+  outline: none;
+}
+
+/* ============================================================================
+   Полосы прокрутки. Были нарисованы на 8px и видны всегда — на узком списке
+   серверов это отъедало заметную долю ширины. Стали тонкими и проявляются при
+   наведении на прокручиваемую область.
+   Цвет берём из --muted-foreground, а не из системных серых: тему приложение
+   переключает классом .dark и с системной она не обязана совпадать, из-за чего
+   старые @media (prefers-color-scheme) красили ползунок мимо темы.
+   Стандартные scrollbar-width/scrollbar-color НЕ задаём: в Chromium любое из них
+   отключает ::-webkit-scrollbar-* целиком, и всё оформление ниже пропадёт.
+   ========================================================================= */
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
 
 *::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
 }
 
+*::-webkit-scrollbar-track,
 *::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
   background-color: transparent;
+  /* Прозрачная рамка по padding-box: видимая толщина ползунка 4px, а зона
+     захвата мышью остаётся во все 10px. */
+  border: 3px solid transparent;
+  background-clip: padding-box;
+  border-radius: var(--radius-pill);
+  transition: background-color 0.18s ease;
 }
 
-/* Light mode */
-@media (prefers-color-scheme: light) {
-  *::-webkit-scrollbar-thumb {
-    background: #c0c1c58f;
-    border-radius: 5px;
-  }
-
-  *::-webkit-scrollbar-thumb:hover {
-    background: #c0c1c550;
-  }
+*:hover::-webkit-scrollbar-thumb,
+*:focus-within::-webkit-scrollbar-thumb {
+  background-color: color-mix(in oklab, var(--muted-foreground) 45%, transparent);
 }
 
-/* Dark mode */
-@media (prefers-color-scheme: dark) {
-  *::-webkit-scrollbar-thumb {
-    background: #c0c1c550;
-    border-radius: 5px;
-  }
+*::-webkit-scrollbar-thumb:hover {
+  background-color: color-mix(in oklab, var(--muted-foreground) 75%, transparent);
+}
 
-  *::-webkit-scrollbar-thumb:hover {
-    background: #c0c1c58f;
-  }
+*::-webkit-scrollbar-thumb:active {
+  background-color: var(--muted-foreground);
 }
 
 @keyframes update-banner-enter {
@@ -542,6 +674,12 @@
 
 .animate-proxy-row-enter {
   animation: proxy-row-enter 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-proxy-row-enter {
+    animation: none;
+  }
 }
 
 @keyframes sticky-header-settle {

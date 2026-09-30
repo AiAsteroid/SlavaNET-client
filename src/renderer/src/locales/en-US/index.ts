@@ -1,4 +1,16 @@
 export default {
+  shell: {
+    back: 'Back',
+    navLabel: 'Main sections',
+    navConnect: 'Connection',
+    navMore: 'More',
+  },
+  connect: {
+    servers: 'Servers',
+    refreshDelays: 'Refresh latency',
+    noServers: 'No servers yet',
+    allServers: 'All servers',
+  },
   common: {
     save: 'Save',
     cancel: 'Cancel',
@@ -155,6 +167,51 @@ export default {
   },
 
   pages: {
+    more: {
+      title: 'More',
+      groups: {
+        subscription: 'Subscription',
+        app: 'Application',
+        support: 'For support',
+      },
+      subscription: {
+        none: 'No subscription',
+        expired: 'Expired',
+        daysLeft_one: '{{count}} day',
+        daysLeft_other: '{{count}} days',
+        update: 'Update subscription',
+        cabinet: 'My account',
+        support: 'Support',
+      },
+      app: {
+        settings: 'Settings',
+        routing: 'Routing mode',
+        routingRule: 'Rules',
+        routingGlobal: 'Global',
+        routingDirect: 'Direct',
+        servers: 'All servers',
+      },
+      support: {
+        diagnostics: 'Diagnostics',
+      },
+      diagnostics: {
+        title: 'Diagnostics',
+        group: 'Technical screens',
+        connections: 'Connections',
+        rules: 'Rules',
+        logs: 'Logs',
+        core: 'Core settings',
+        sysproxy: 'System proxy',
+        tun: 'TUN mode',
+        dns: 'DNS',
+        sniffer: 'Domain sniffing',
+        resources: 'External resources',
+      },
+      about: {
+        sourceCode: 'Source code',
+        version: 'Version {{version}}',
+      },
+    },
     home: {
       connectTitle: 'No subscription yet',
       connectDescription: 'Sign in to your account and the subscription is added for you.',
