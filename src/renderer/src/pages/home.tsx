@@ -23,7 +23,7 @@ import SubscriptionEmptyState from '@renderer/components/profiles/subscription-e
 import { CharacterMorph } from '@renderer/components/ui/character-morph'
 import { cn } from '@renderer/lib/utils'
 import { calcTraffic } from '@renderer/utils/calc'
-import { splitTariffName } from '@renderer/utils/subscription'
+import { providerPage, splitTariffName } from '@renderer/utils/subscription'
 import { useTrafficStore } from '@renderer/store/traffic-store'
 
 function formatBytes(bytes: number): string {
@@ -197,8 +197,8 @@ const Home: React.FC = () => {
 
   const showExpiryNotice = expireTimestamp > 0 && daysRemaining <= EXPIRY_WARNING_DAYS
   const renewAction =
-    currentProfile?.homeName && currentProfile?.home
-      ? { url: currentProfile.home, label: currentProfile.homeName }
+    currentProfile?.homeName && providerPage(currentProfile)
+      ? { url: providerPage(currentProfile) as string, label: currentProfile.homeName }
       : currentProfile?.supportUrl
         ? { url: currentProfile.supportUrl, label: t('pages.home.renewSubscription') }
         : null

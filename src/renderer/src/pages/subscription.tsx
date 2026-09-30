@@ -23,7 +23,7 @@ import { useProfileConfig } from '@renderer/hooks/use-profile-config'
 import { useLoginStore } from '@renderer/store/login-store'
 import { calcTraffic } from '@renderer/utils/calc'
 import { disconnectAccount, fetchCabinetDevices, hasCabinetSession } from '@renderer/utils/ipc'
-import { splitTariffName } from '@renderer/utils/subscription'
+import { CABINET_URL, providerPage, splitTariffName } from '@renderer/utils/subscription'
 import { cn } from '@renderer/lib/utils'
 
 // Порог тревоги тот же, что у живой строки на главной (home.tsx:196): два экрана
@@ -137,7 +137,10 @@ const Subscription: React.FC = () => {
       ? t('pages.home.statusExpiring')
       : status
 
-  const cabinetUrl = currentProfile?.home
+  // Кабинет — всегда наш адрес. Заголовок profile-web-page-url для этого не
+  // годится: панель кладёт туда ссылку подписки (см. providerPage).
+  const cabinetUrl = CABINET_URL
+  const providerUrl = providerPage(currentProfile ?? undefined)
   const supportUrl = currentProfile?.supportUrl
   const canUpdate = !!currentProfile && currentProfile.type === 'remote'
 
@@ -145,8 +148,8 @@ const Subscription: React.FC = () => {
   // живой строки на главной (home.tsx:199): свой адрес кабинета, иначе
   // поддержка — оплатить через человека тоже способ.
   const renewAction =
-    currentProfile?.homeName && currentProfile?.home
-      ? { url: currentProfile.home, label: currentProfile.homeName }
+    currentProfile?.homeName && providerUrl
+      ? { url: providerUrl, label: currentProfile.homeName }
       : currentProfile?.supportUrl
         ? { url: currentProfile.supportUrl, label: t('pages.home.renewSubscription') }
         : null
