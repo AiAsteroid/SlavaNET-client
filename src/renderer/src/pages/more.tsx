@@ -2,9 +2,7 @@ import React, { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import useSWR from 'swr'
-import dayjs from 'dayjs'
 import {
-  AppWindow,
   ChevronRight,
   ChevronsUpDown,
   Code,
@@ -12,8 +10,6 @@ import {
   ExternalLink,
   Github,
   Globe,
-  HeadsetIcon,
-  RefreshCcw,
   Route,
   SlidersHorizontal
 } from 'lucide-react'
@@ -31,14 +27,12 @@ import { useControledMihomoConfig } from '@renderer/hooks/use-controled-mihomo-c
 import { useProfileConfig } from '@renderer/hooks/use-profile-config'
 import { useGroups } from '@renderer/hooks/use-groups'
 import { getVersion, mihomoCloseAllConnections, patchMihomoConfig } from '@renderer/utils/ipc'
-import { calcTraffic } from '@renderer/utils/calc'
 import { cn } from '@renderer/lib/utils'
 
 // Кабинет — наш собственный адрес, а не свойство подписки. У профиля может быть
 // свой home (его подставляет подписка), но если его нет, человеку всё равно
 // нужно куда-то попасть за оплатой: ссылка на кабинет остаётся всегда.
 // Тот же адрес открывает cabinet-login-modal.tsx:81.
-const CABINET_URL = 'https://web.slavanet.org'
 
 // ⚠️ GPL-3.0: раздавая сборку, мы обязаны дать получателю исходники нашей версии.
 // Эта ссылка — самый простой способ исполнить требование, удалять её нельзя.
@@ -155,12 +149,11 @@ const More: React.FC = () => {
   const { autoCloseConnection = true } = appConfig || {}
   const { controledMihomoConfig, patchControledMihomoConfig } = useControledMihomoConfig()
   const { mode } = controledMihomoConfig || {}
-  const { profileConfig, addProfileItem } = useProfileConfig()
+  const { profileConfig } = useProfileConfig()
   const { mutate: mutateGroups } = useGroups()
   const { data: version } = useSWR('getVersion', getVersion)
 
   const [level, setLevel] = useState<Level>('root')
-  const [updating, setUpdating] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
 
   // Прокрутка принадлежит внешнему контейнеру, а содержимое в нём подменяется.
@@ -180,45 +173,6 @@ const More: React.FC = () => {
   // профилем получил бы кнопку, которой у него не должно быть.
   const routingAllowed = hasProfiles && currentProfile?.globalMode !== false
 
-  const subscription = currentProfile?.extra
-  const trafficTotal = subscription?.total ?? 0
-  const trafficUsed = (subscription?.upload ?? 0) + (subscription?.download ?? 0)
-  const expireTimestamp = subscription?.expire ?? 0
-  const expiresAt = expireTimestamp > 0 ? dayjs.unix(expireTimestamp) : null
-  const isExpired = expiresAt?.isBefore(dayjs()) ?? false
-  const daysRemaining = expiresAt ? Math.max(0, expiresAt.diff(dayjs(), 'day')) : 0
-
-  // Остаток собирается из того, что подписка вообще ограничивает: у безлимитной
-  // по трафику нет гигабайтов, у бессрочной — дней. Пустая строка вместо
-  // значения читалась бы как «данные не загрузились».
-  const remainderParts: string[] = []
-  if (trafficTotal > 0) remainderParts.push(calcTraffic(Math.max(0, trafficTotal - trafficUsed)))
-  if (expiresAt) {
-    remainderParts.push(t('pages.more.subscription.daysLeft', { count: daysRemaining }))
-  }
-  const remainder = subscription
-    ? remainderParts.length > 0
-      ? remainderParts.join(' · ')
-      : t('pages.home.unlimited')
-    : undefined
-
-  const supportUrl = currentProfile?.supportUrl
-  const cabinetUrl = currentProfile?.home || CABINET_URL
-  // Обновить можно только удалённую подписку: у локального файла нет источника,
-  // откуда тянуть свежий конфиг.
-  const canUpdate = !!currentProfile && currentProfile.type === 'remote'
-
-  const onUpdateProfile = async (): Promise<void> => {
-    if (!currentProfile || updating) return
-    setUpdating(true)
-    try {
-      // Повторное добавление того же профиля и есть обновление подписки — так
-      // же делает главный экран (home.tsx:152). Ошибку покажет сам хук.
-      await addProfileItem(currentProfile)
-    } finally {
-      setUpdating(false)
-    }
-  }
 
   const onChangeMode = async (next: OutboundMode): Promise<void> => {
     if (next === mode) return
@@ -259,47 +213,10 @@ const More: React.FC = () => {
         >
           {level === 'root' ? (
             <>
-              <Group title={t('pages.more.groups.subscription')}>
-                <Row
-                  icon={CreditCard}
-                  label={currentProfile?.name || t('pages.more.subscription.none')}
-                  value={
-                    isExpired ? (
-                      <span className="text-destructive">
-                        {t('pages.more.subscription.expired')}
-                      </span>
-                    ) : (
-                      remainder
-                    )
-                  }
-                  trailing="chevron"
-                  onClick={() => navigate('/profiles')}
-                />
-                <Row
-                  icon={RefreshCcw}
-                  label={t('pages.more.subscription.update')}
-                  disabled={!canUpdate || updating}
-                  busy={updating}
-                  onClick={onUpdateProfile}
-                />
-                <Row
-                  icon={AppWindow}
-                  label={t('pages.more.subscription.cabinet')}
-                  trailing="external"
-                  title={cabinetUrl}
-                  onClick={() => window.open(cabinetUrl)}
-                />
-                {supportUrl && (
-                  <Row
-                    icon={HeadsetIcon}
-                    label={t('pages.more.subscription.support')}
-                    trailing="external"
-                    title={supportUrl}
-                    onClick={() => window.open(supportUrl)}
-                  />
-                )}
-              </Group>
-
+              {/* Раздел «Подписка» переехал в собственную вкладку капсулы
+                  (pages/subscription.tsx, решение владельца 30.09.2026).
+                  Дублировать его здесь значит держать два места, которые
+                  разъедутся при первой же правке. */}
               <Group title={t('pages.more.groups.app')}>
                 <Row
                   icon={SlidersHorizontal}

@@ -3,6 +3,7 @@ export default {
     back: 'Back',
     navLabel: 'Main sections',
     navConnect: 'Connection',
+    navSubscription: 'Subscription',
     navMore: 'More',
   },
   connect: {
@@ -167,6 +168,17 @@ export default {
   },
 
   pages: {
+    subscription: {
+      title: 'Subscription',
+      until: 'until {{date}}',
+      unlimited: 'Unlimited',
+      trafficLeft: 'left',
+      trafficOf: '{{used}} of {{total}}',
+      traffic: 'Traffic used',
+      daysLeftLabel: 'Time left',
+      groupDetails: 'Plan',
+      groupActions: 'Actions',
+    },
     more: {
       title: 'More',
       groups: {

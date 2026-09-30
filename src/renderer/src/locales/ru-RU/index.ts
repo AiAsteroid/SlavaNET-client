@@ -3,6 +3,7 @@ export default {
     back: 'Назад',
     navLabel: 'Основные разделы',
     navConnect: 'Подключение',
+    navSubscription: 'Подписка',
     navMore: 'Ещё',
   },
   connect: {
@@ -168,6 +169,17 @@ export default {
   },
 
   pages: {
+    subscription: {
+      title: 'Подписка',
+      until: 'до {{date}}',
+      unlimited: 'Безлимит',
+      trafficLeft: 'осталось',
+      trafficOf: '{{used}} из {{total}}',
+      traffic: 'Потрачено трафика',
+      daysLeftLabel: 'Осталось',
+      groupDetails: 'Тариф',
+      groupActions: 'Действия',
+    },
     more: {
       title: 'Ещё',
       groups: {

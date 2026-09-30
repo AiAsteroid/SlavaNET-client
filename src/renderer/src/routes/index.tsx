@@ -13,6 +13,7 @@ import DNS from '@renderer/pages/dns'
 import Sniffer from '@renderer/pages/sniffer'
 import Home from '@renderer/pages/home'
 import More from '@renderer/pages/more'
+import Subscription from '@renderer/pages/subscription'
 const routes = [
   {
     path: '/mihomo',
@@ -73,6 +74,10 @@ const routes = [
   {
     path: '/more',
     element: <More />
+  },
+  {
+    path: '/subscription',
+    element: <Subscription />
   }
 ]
 

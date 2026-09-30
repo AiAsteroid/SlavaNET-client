@@ -3,6 +3,7 @@ export default {
     back: '返回',
     navLabel: '主要分区',
     navConnect: '连接',
+    navSubscription: '订阅',
     navMore: '更多',
   },
   connect: {
@@ -242,6 +243,17 @@ export default {
   },
 
   pages: {
+    subscription: {
+      title: '订阅',
+      until: '至 {{date}}',
+      unlimited: '无限制',
+      trafficLeft: '剩余',
+      trafficOf: '{{used}} / {{total}}',
+      traffic: '已用流量',
+      daysLeftLabel: '剩余时间',
+      groupDetails: '套餐',
+      groupActions: '操作',
+    },
     more: {
       title: '更多',
       groups: {

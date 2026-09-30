@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { Check, ChevronRight, Gauge } from 'lucide-react'
+import { ChevronRight, Gauge } from 'lucide-react'
 import ProxyName from '@renderer/components/base/proxy-name'
 import { Spinner } from '@renderer/components/ui/spinner'
 import { cn } from '@renderer/lib/utils'
@@ -198,29 +198,28 @@ const ServerList: React.FC = () => {
                     )}
                     style={
                       selected
-                        ? { background: 'color-mix(in oklab, var(--sn-accent) 14%, transparent)' }
+                        ? { background: 'color-mix(in oklab, var(--sn-accent) 20%, transparent)' }
                         : undefined
                     }
                   >
-                    {/* Слот под галочку держит ширину всегда: иначе выбор узла
-                        сдвигал бы все имена на 16 px вправо. */}
-                    <span className="flex w-4 shrink-0 items-center justify-center">
-                      {switching === proxy.name ? (
-                        <Spinner className="size-3.5" />
-                      ) : selected ? (
-                        <Check className="size-4 text-[color:var(--sn-accent)]" />
-                      ) : null}
-                    </span>
-                    <ProxyName name={proxy.name} size={18} className="min-w-0 flex-1 text-[13px]" />
-                    {/* tabular-nums и фиксированная ширина: цифры задержек
-                        стоят в колонку, а не пляшут по строкам. */}
+                    {/* Галочки нет намеренно: выбранный узел обозначает сама
+                        подсветка строки. Слот под значок тоже убран — иначе
+                        все имена стояли бы с отступом ради метки, которой нет. */}
+                    <ProxyName
+                      name={proxy.name}
+                      size={18}
+                      className={cn('min-w-0 flex-1 text-[13px]', selected && 'font-medium')}
+                    />
+                    {/* Ожидание показываем НА МЕСТЕ задержки, а не слева: пока
+                        узел переключается, его задержка всё равно не значит
+                        ничего, зато строка не дёргается. */}
                     <span
                       className={cn(
-                        'w-12 shrink-0 text-right font-mono text-[11px] tabular-nums',
+                        'flex w-12 shrink-0 items-center justify-end font-mono text-[11px] tabular-nums',
                         delayClass(delay)
                       )}
                     >
-                      {delayText(delay)}
+                      {switching === proxy.name ? <Spinner className="size-3.5" /> : delayText(delay)}
                     </span>
                   </button>
                 </li>

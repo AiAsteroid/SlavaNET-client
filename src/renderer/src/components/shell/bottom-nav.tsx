@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { motion } from 'motion/react'
-import { MoreHorizontal, Power } from 'lucide-react'
+import { CreditCard, MoreHorizontal, Power } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { cn } from '@renderer/lib/utils'
@@ -46,7 +46,12 @@ const MORE_PATHS = new Set([
   '/resources'
 ])
 
-type SectionId = 'connect' | 'more'
+// Подписка вынесена в собственный раздел по решению владельца: на главном
+// экране про тариф не должно быть ничего, там кнопка и серверы. В кабинете
+// подписка — тоже отдельный раздел, и приложение повторяет его состав.
+const SUBSCRIPTION_PATHS = new Set(['/subscription'])
+
+type SectionId = 'connect' | 'subscription' | 'more'
 
 // Прозрачность капсулы — не украшение: сквозь неё видно список серверов, и по
 // нему человек понимает, что список продолжается под панелью. Но в macOS есть
@@ -81,7 +86,7 @@ function useReducedTransparency(): boolean {
   return reduced
 }
 
-// Нижняя панель — плавающая капсула «жидкого стекла» на два пункта.
+// Нижняя панель — плавающая капсула «жидкого стекла» на три пункта.
 //
 // Сайдбара в приложении нет: «Подключение» — это весь главный экран, а всё
 // остальное собрано в «Ещё». Маршрут компонент читает сам, чтобы страницы не
@@ -96,10 +101,20 @@ const BottomNav: React.FC = () => {
   // Сравнивается ПЕРВЫЙ сегмент пути: вложенные экраны вроде /settings/whatever
   // должны подсвечивать тот же пункт, что и их корень.
   const firstSegment = `/${location.pathname.split('/')[1] ?? ''}`
-  const active: SectionId = MORE_PATHS.has(firstSegment) ? 'more' : 'connect'
+  const active: SectionId = SUBSCRIPTION_PATHS.has(firstSegment)
+    ? 'subscription'
+    : MORE_PATHS.has(firstSegment)
+      ? 'more'
+      : 'connect'
 
   const items: { id: SectionId; path: string; label: string; Icon: typeof Power }[] = [
     { id: 'connect', path: '/home', label: t('shell.navConnect'), Icon: Power },
+    {
+      id: 'subscription',
+      path: '/subscription',
+      label: t('shell.navSubscription'),
+      Icon: CreditCard
+    },
     { id: 'more', path: '/more', label: t('shell.navMore'), Icon: MoreHorizontal }
   ]
 
