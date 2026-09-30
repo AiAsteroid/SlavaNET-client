@@ -154,7 +154,19 @@ const ServerList: React.FC = () => {
   return (
     // min-h-0 обязателен: без него flex-колонка растягивается по содержимому, и
     // прокручиваться начинает весь экран вместе с кнопкой включения.
-    <div className="flex min-h-0 flex-1 flex-col [--sn-accent:#2563eb] dark:[--sn-accent:#3b82f6]">
+    <div
+      className={cn(
+        'flex min-h-0 flex-1 flex-col',
+        '[--sn-accent:#2563eb] dark:[--sn-accent:#3b82f6]',
+        // Заливка выбранной строки задаётся ОТДЕЛЬНО от акцента, а не долей от
+        // него. В темноте синий по тёмно-синему фону смешивается чисто, а по
+        // шампани холодный синий на 20 % мутнеет до серо-лилового и перестаёт
+        // читаться акцентом. Поэтому в светлой теме подмешиваем не в
+        // прозрачность, а в белый: получается ясный бледно-голубой.
+        '[--sn-selected:color-mix(in_oklab,#2563eb_12%,#ffffff)]',
+        'dark:[--sn-selected:color-mix(in_oklab,#3b82f6_20%,transparent)]'
+      )}
+    >
       <div className="flex shrink-0 items-center justify-between gap-2 px-3 pb-1">
         <div className="flex min-w-0 items-baseline gap-1.5">
           <span className="text-[13px] font-semibold text-foreground">{t('connect.servers')}</span>
@@ -198,7 +210,7 @@ const ServerList: React.FC = () => {
                     )}
                     style={
                       selected
-                        ? { background: 'color-mix(in oklab, var(--sn-accent) 20%, transparent)' }
+                        ? { background: 'var(--sn-selected)' }
                         : undefined
                     }
                   >
