@@ -244,6 +244,8 @@ export default {
 
   pages: {
     subscription: {
+      signOutConfirmTitle: '退出账号？',
+      signOutConfirmText: '订阅将被断开，服务器列表消失，VPN 将关闭。您随时可以重新登录。',
       signOut: '退出账号',
       meterTraffic: '流量',
       updatedAgo: '{{ago}}更新',

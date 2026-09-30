@@ -17,11 +17,12 @@ import {
 import TitleStrip from '@renderer/components/shell/title-strip'
 import { Group, Row } from '@renderer/components/shell/list-group'
 import SubscriptionEmptyState from '@renderer/components/profiles/subscription-empty-state'
+import ConfirmModal from '@renderer/components/base/base-confirm'
 import { Spinner } from '@renderer/components/ui/spinner'
 import { useProfileConfig } from '@renderer/hooks/use-profile-config'
 import { useLoginStore } from '@renderer/store/login-store'
 import { calcTraffic } from '@renderer/utils/calc'
-import { fetchCabinetDevices, hasCabinetSession, signOutOfCabinet } from '@renderer/utils/ipc'
+import { disconnectAccount, fetchCabinetDevices, hasCabinetSession } from '@renderer/utils/ipc'
 import { splitTariffName } from '@renderer/utils/subscription'
 import { cn } from '@renderer/lib/utils'
 
@@ -255,12 +256,18 @@ const Subscription: React.FC = () => {
     }
   }, [devices])
 
+  // Выход спрашивает подтверждение: он уносит подписку, а с ней и доступ.
+  // Действие обратимое — войти можно снова, — но не бесплатное, и человек
+  // должен понимать, что нажимает.
+  const [confirmSignOut, setConfirmSignOut] = useState(false)
+
   const onSignOut = async (): Promise<void> => {
-    await signOutOfCabinet()
-    setSignedIn(false)
+    setConfirmSignOut(false)
     // Кэш обязан протухнуть сразу: иначе ещё минуту показывали бы список
     // устройств аккаунта, из которого только что вышли.
     devicesCache = null
+    setSignedIn(false)
+    await disconnectAccount()
     await loadDevices(true)
   }
 
@@ -704,11 +711,28 @@ const Subscription: React.FC = () => {
               icon={LogOut}
               label={t('pages.subscription.signOut')}
               className="text-destructive"
-              onClick={onSignOut}
+              onClick={() => setConfirmSignOut(true)}
             />
           )}
         </Group>
       </div>
+
+      {confirmSignOut && (
+        <ConfirmModal
+          title={t('pages.subscription.signOutConfirmTitle')}
+          description={
+            <p className="text-sm text-muted-foreground">
+              {t('pages.subscription.signOutConfirmText')}
+            </p>
+          }
+          confirmText={t('pages.subscription.signOut')}
+          cancelText={t('common.cancel')}
+          onChange={(open) => {
+            if (!open) setConfirmSignOut(false)
+          }}
+          onConfirm={onSignOut}
+        />
+      )}
     </div>
   )
 }

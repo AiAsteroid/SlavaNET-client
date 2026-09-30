@@ -170,6 +170,8 @@ export default {
 
   pages: {
     subscription: {
+      signOutConfirmTitle: 'Выйти из аккаунта?',
+      signOutConfirmText: 'Подписка будет отключена, серверы исчезнут, VPN выключится. Войти снова можно в любой момент.',
       signOut: 'Выйти из аккаунта',
       meterTraffic: 'Трафик',
       updatedAgo: 'Обновлено {{ago}}',

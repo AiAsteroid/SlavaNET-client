@@ -102,6 +102,7 @@ import {
   setNotQuitDialog,
   showError,
   showMainWindow,
+  disconnectAccount,
   startEmailLogin,
   startSubscriptionConnect,
   startWebsiteLogin,
@@ -257,6 +258,7 @@ export function registerIpcMainHandlers(): void {
   })
   ipcMain.handle('hasCabinetSession', () => hasCabinetSession())
   ipcMain.handle('signOutOfCabinet', () => signOutOfCabinet())
+  ipcMain.handle('disconnectAccount', () => ipcErrorWrapper(disconnectAccount)())
   ipcMain.handle('cancelSubscriptionConnect', () => cancelSubscriptionConnect())
   ipcMain.handle('getPendingSubscriptionConnect', () => getPendingSubscriptionConnect())
   // Устройства подписки. Вызывается ТОЛЬКО когда человек открыл раздел

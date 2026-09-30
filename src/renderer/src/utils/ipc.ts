@@ -341,6 +341,11 @@ export async function hasCabinetSession(): Promise<boolean> {
   return ipcErrorWrapper(await window.electron.ipcRenderer.invoke('hasCabinetSession'))
 }
 
+// Выход из аккаунта: гасит сессию и убирает всё, что аккаунт принёс.
+export async function disconnectAccount(): Promise<void> {
+  return ipcErrorWrapper(await window.electron.ipcRenderer.invoke('disconnectAccount'))
+}
+
 export async function signOutOfCabinet(): Promise<void> {
   return ipcErrorWrapper(await window.electron.ipcRenderer.invoke('signOutOfCabinet'))
 }

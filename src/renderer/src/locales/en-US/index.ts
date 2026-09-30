@@ -169,6 +169,8 @@ export default {
 
   pages: {
     subscription: {
+      signOutConfirmTitle: 'Sign out?',
+      signOutConfirmText: 'The subscription will be disconnected, the servers will disappear and the VPN will switch off. You can sign in again at any time.',
       signOut: 'Sign out',
       meterTraffic: 'Traffic',
       updatedAgo: 'Updated {{ago}}',

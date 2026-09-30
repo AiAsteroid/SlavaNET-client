@@ -12,7 +12,13 @@ import {
   powerMonitor,
   shell
 } from 'electron'
-import { addProfileItem, getAppConfig, getProfileConfig, patchControledMihomoConfig } from './config'
+import {
+  addProfileItem,
+  getAppConfig,
+  getProfileConfig,
+  patchControledMihomoConfig,
+  removeProfileItem
+} from './config'
 import { quitWithoutCore, startCore, stopCore } from './core/manager'
 import { triggerSysProxy } from './sys/sysproxy'
 import icon from '../../resources/icon.png?asset'
@@ -33,7 +39,8 @@ import {
   hasCabinetSession,
   runEmailLogin,
   runSubscriptionConnect,
-  runSubscriptionFromSession
+  runSubscriptionFromSession,
+  signOutOfCabinet
 } from './resolve/connect'
 import { getAppConfigSync } from './config/app'
 import { declineElevation, ELEVATION_DECLINED_ARG } from './utils/elevation'
@@ -450,6 +457,27 @@ export async function openSubscriptionEntry(): Promise<void> {
   // No session, or the stored one is dead — ask to sign in rather than report
   // a dead end the person can do nothing about.
   safeSend(mainWindow, 'open-subscription-login')
+}
+
+// Выход из аккаунта отключает ВСЁ, что дал аккаунт.
+//
+// Сначала я развёл сессию кабинета и подписку: мол, человек, отключивший
+// аккаунт, не должен остаться без интернета. Владелец поправил, и он прав:
+// «авторизовался — появилось всё, вышел — всё отключилось». Половинчатый
+// выход выглядел именно так, как он и описал: устройства пропали, а серверы
+// и название тарифа остались, и было непонятно, вышел ты или нет.
+//
+// Удаляем только УДАЛЁННЫЕ профили: локальный конфиг из файла человек принёс
+// сам, аккаунт к нему отношения не имеет, и стирать чужое мы не вправе.
+// Когда исчезает последний профиль, туннель гасится существующей логикой
+// внутри removeProfileItem — отдельно выключать ничего не нужно.
+export async function disconnectAccount(): Promise<void> {
+  signOutOfCabinet()
+  const { items } = await getProfileConfig()
+  for (const item of items.filter((i) => i.type === 'remote')) {
+    await removeProfileItem(item.id)
+  }
+  safeSend(mainWindow, 'profileConfigUpdated')
 }
 
 export async function startSubscriptionConnect(): Promise<void> {
