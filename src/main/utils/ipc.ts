@@ -25,9 +25,15 @@ import {
 import { checkAutoRun, disableAutoRun, enableAutoRun } from '../sys/autoRun'
 import {
   cancelSubscriptionConnect,
+  fetchCabinetBalance,
   fetchCabinetDevices,
+  fetchCabinetDeviceQuote,
+  fetchCabinetTransactions,
   getPendingSubscriptionConnect,
   hasCabinetSession,
+  purchaseCabinetDevices,
+  removeCabinetDevice,
+  renameCabinetDevice,
   signOutOfCabinet
 } from '../resolve/connect'
 import {
@@ -268,6 +274,34 @@ export function registerIpcMainHandlers(): void {
   // случай неожиданного падения, чтобы рендерер получил сообщение, а не зависшее
   // обещание.
   ipcMain.handle('fetchCabinetDevices', ipcErrorWrapper(fetchCabinetDevices))
+  // Баланс и история операций. Тоже поход в сеть с токеном — звать только
+  // когда экран открыт, а не при старте.
+  ipcMain.handle('fetchCabinetBalance', ipcErrorWrapper(fetchCabinetBalance))
+  // ⚠️ Аргументы обработчику приходят ПОСЛЕ события, поэтому здесь и ниже
+  // обёртка вызывается явно: ipcErrorWrapper(fn) передал бы функции сам
+  // IpcMainInvokeEvent первым аргументом. У fetchCabinetDevices аргументов нет,
+  // поэтому там короткая форма безвредна.
+  ipcMain.handle('fetchCabinetTransactions', (_e, params: CabinetTransactionsParams) =>
+    ipcErrorWrapper(fetchCabinetTransactions)(params)
+  )
+  // ⚠️ ДЕНЬГИ. Цена докупки — обязательный шаг ПЕРЕД подтверждением: покупка
+  // ниже принимает только идентификатор этого расчёта и живёт он 90 секунд.
+  ipcMain.handle('fetchCabinetDeviceQuote', (_e, devices: number) =>
+    ipcErrorWrapper(fetchCabinetDeviceQuote)(devices)
+  )
+  // ⚠️ ДЕНЬГИ. Списание мгновенное и без возврата. Защита от повторной отправки
+  // стоит ВНУТРИ purchaseCabinetDevices, в главном процессе: пока запрос в
+  // полёте, второй вызов получает отказ и в сеть не идёт. Здесь её нет
+  // намеренно — обработчик не должен стать вторым местом с той же логикой.
+  ipcMain.handle('purchaseCabinetDevices', (_e, quoteId: string) =>
+    ipcErrorWrapper(purchaseCabinetDevices)(quoteId)
+  )
+  ipcMain.handle('renameCabinetDevice', (_e, hwid: string, name: string) =>
+    ipcErrorWrapper(renameCabinetDevice)(hwid, name)
+  )
+  ipcMain.handle('removeCabinetDevice', (_e, hwid: string) =>
+    ipcErrorWrapper(removeCabinetDevice)(hwid)
+  )
   ipcMain.handle('cancelUpdate', ipcErrorWrapper(cancelUpdate))
   ipcMain.handle('getVersion', () => app.getVersion())
   ipcMain.handle('platform', () => process.platform)

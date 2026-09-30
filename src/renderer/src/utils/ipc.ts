@@ -368,6 +368,86 @@ export async function fetchCabinetDevices(): Promise<CabinetDevicesResult> {
   return ipcErrorWrapper(await window.electron.ipcRenderer.invoke('fetchCabinetDevices'))
 }
 
+// Баланс кабинета в копейках. Как и устройства — запрос в сеть с токеном:
+// звать, когда экран открыт, а не при старте. Не бросает: отказы приходят
+// состояниями (см. CabinetFailure).
+export async function fetchCabinetBalance(): Promise<CabinetBalanceResult> {
+  return ipcErrorWrapper(await window.electron.ipcRenderer.invoke('fetchCabinetBalance'))
+}
+
+// История операций, страницами. page с единицы, perPage 1..100 — значения
+// зажимаются в главном процессе, за границами сервер отдал бы 422.
+// ⚠️ Если в ответе skipped > 0, часть записей прочитать не удалось: в истории
+// денег дыра, и сказать об этом надо, а не показать список короче.
+export async function fetchCabinetTransactions(
+  params: CabinetTransactionsParams = {}
+): Promise<CabinetTransactionsResult> {
+  return ipcErrorWrapper(
+    await window.electron.ipcRenderer.invoke('fetchCabinetTransactions', params)
+  )
+}
+
+// ⚠️ ДЕНЬГИ. Цена докупки устройств, снятая с сервера ПРЯМО СЕЙЧАС, вместе с
+// балансом. Звать НЕПОСРЕДСТВЕННО перед показом подтверждения и больше никак:
+// остаток подписки уменьшается каждые сутки, и вчерашняя цифра — враньё.
+// Кэшировать результат нельзя.
+//
+// В подтверждении обязаны стоять четыре вещи, и все они есть в расчёте:
+// priceKopeks/priceLabel (сумма), newLimit (новый лимит),
+// balanceAfterKopeks (остаток после списания) и то, что возврата не будет —
+// последнее в клиенте не откуда взять, это текст интерфейса.
+//
+// state:'unavailable' — сервер отказался продавать и назвал причину; это НЕ
+// ошибка связи, и «повторить» тут не поможет.
+export async function fetchCabinetDeviceQuote(
+  devices: number
+): Promise<CabinetDeviceQuoteResult> {
+  return ipcErrorWrapper(
+    await window.electron.ipcRenderer.invoke('fetchCabinetDeviceQuote', devices)
+  )
+}
+
+// ⚠️ ДЕНЬГИ. Списывает с баланса МГНОВЕННО, без подтверждения на сервере и без
+// возможности возврата. Принимает только идентификатор расчёта: число устройств
+// сюда передать нельзя специально — покупается ровно то, цену чего человек
+// видел в подтверждении.
+//
+// Защита от повторной отправки стоит в главном процессе: пока запрос в полёте,
+// второй вызов вернёт state:'busy' и в сеть не пойдёт. Интерфейс обязан гасить
+// кнопку СРАЗУ при нажатии и не включать её обратно до ответа — но полагаться
+// на это нельзя, поэтому замок и живёт не здесь.
+//
+// ⚠️ state:'unknown' — запрос ушёл, ответа нет. Деньги могли списаться.
+// Повторять НЕЛЬЗЯ ни автоматически, ни по кнопке: покажи сообщение и позови
+// перечитать баланс и устройства. Пока не запросят цену заново, покупка будет
+// возвращать это же состояние.
+export async function purchaseCabinetDevices(
+  quoteId: string
+): Promise<CabinetDevicePurchaseResult> {
+  return ipcErrorWrapper(
+    await window.electron.ipcRenderer.invoke('purchaseCabinetDevices', quoteId)
+  )
+}
+
+// Своё имя устройства. Пустая строка СБРАСЫВАЕТ имя: в списке снова появится
+// подпись от платформы и модели. Имя схлопывается по пробелам и режется до 64
+// символов — так же, как на сервере, чтобы на экране стояло сохранённое.
+export async function renameCabinetDevice(
+  hwid: string,
+  name: string
+): Promise<CabinetDeviceRenameResult> {
+  return ipcErrorWrapper(
+    await window.electron.ipcRenderer.invoke('renameCabinetDevice', hwid, name)
+  )
+}
+
+// Отключение ОДНОГО устройства. Денег не стоит и лимит подписки не меняет —
+// освобождается слот. Устройства без hwid отключить нельзя: вернётся
+// state:'badHwid'.
+export async function removeCabinetDevice(hwid: string): Promise<CabinetDeviceRemoveResult> {
+  return ipcErrorWrapper(await window.electron.ipcRenderer.invoke('removeCabinetDevice', hwid))
+}
+
 export async function downloadAndInstallUpdate(version: string): Promise<void> {
   return ipcErrorWrapper(
     await window.electron.ipcRenderer.invoke('downloadAndInstallUpdate', version)
