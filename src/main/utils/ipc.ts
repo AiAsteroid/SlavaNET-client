@@ -25,6 +25,7 @@ import {
 import { checkAutoRun, disableAutoRun, enableAutoRun } from '../sys/autoRun'
 import {
   cancelSubscriptionConnect,
+  fetchCabinetDevices,
   getPendingSubscriptionConnect,
   hasCabinetSession,
   signOutOfCabinet
@@ -258,6 +259,13 @@ export function registerIpcMainHandlers(): void {
   ipcMain.handle('signOutOfCabinet', () => signOutOfCabinet())
   ipcMain.handle('cancelSubscriptionConnect', () => cancelSubscriptionConnect())
   ipcMain.handle('getPendingSubscriptionConnect', () => getPendingSubscriptionConnect())
+  // Устройства подписки. Вызывается ТОЛЬКО когда человек открыл раздел
+  // подписки: внутри поход в сеть с токеном, а не чтение локального состояния.
+  // Своих исключений функция не бросает — «устройств нет», «надо войти» и «не
+  // смогли спросить» приходят как разные state в ответе; обёртка оставлена на
+  // случай неожиданного падения, чтобы рендерер получил сообщение, а не зависшее
+  // обещание.
+  ipcMain.handle('fetchCabinetDevices', ipcErrorWrapper(fetchCabinetDevices))
   ipcMain.handle('cancelUpdate', ipcErrorWrapper(cancelUpdate))
   ipcMain.handle('getVersion', () => app.getVersion())
   ipcMain.handle('platform', () => process.platform)

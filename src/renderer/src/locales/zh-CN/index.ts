@@ -244,6 +244,21 @@ export default {
 
   pages: {
     subscription: {
+      meterTraffic: '流量',
+      updatedAgo: '{{ago}}更新',
+      updatedNever: '尚未更新',
+      devices: {
+        title: '设备',
+        titleCount: '设备 · {{used}} / {{limit}}',
+        loading: '正在查看已连接设备…',
+        empty: '暂无设备',
+        emptyHint: '如果确实有设备，可能是面板未响应 — 请更新订阅',
+        signInHint: '登录后可查看已连接的设备',
+        error: '不能获取设备列表',
+        lastSeen: '{{ago}}活跃',
+        lastSeenUnknown: '最后活跃时间未知',
+        platformUnknown: '平台未知',
+      },
       title: '订阅',
       until: '至 {{date}}',
       unlimited: '无限制',
@@ -299,6 +314,7 @@ export default {
       },
     },
     home: {
+      statusExpiring: '即将到期',
       connectTitle: '尚未添加订阅',
       connectDescription: '登录账户后，订阅将自动添加。',
       connectButton: '添加订阅',

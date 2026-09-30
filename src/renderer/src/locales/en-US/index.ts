@@ -169,6 +169,21 @@ export default {
 
   pages: {
     subscription: {
+      meterTraffic: 'Traffic',
+      updatedAgo: 'Updated {{ago}}',
+      updatedNever: 'Never updated',
+      devices: {
+        title: 'Devices',
+        titleCount: 'Devices · {{used}} of {{limit}}',
+        loading: 'Checking what is connected…',
+        empty: 'No devices yet',
+        emptyHint: 'If you do have devices, the panel may not have answered — update the subscription',
+        signInHint: 'Sign in to see your connected devices',
+        error: 'Could not load the device list',
+        lastSeen: 'active {{ago}}',
+        lastSeenUnknown: 'last activity unknown',
+        platformUnknown: 'Unknown platform',
+      },
       title: 'Subscription',
       until: 'until {{date}}',
       unlimited: 'Unlimited',
@@ -225,6 +240,7 @@ export default {
       },
     },
     home: {
+      statusExpiring: 'Expiring',
       connectTitle: 'No subscription yet',
       connectDescription: 'Sign in to your account and the subscription is added for you.',
       connectButton: 'Add subscription',

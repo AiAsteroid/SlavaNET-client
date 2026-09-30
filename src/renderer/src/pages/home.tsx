@@ -6,6 +6,7 @@ import { useControledMihomoConfig } from '@renderer/hooks/use-controled-mihomo-c
 import { useProfileConfig } from '@renderer/hooks/use-profile-config'
 import { triggerSysProxy, updateTrayIcon, mihomoHotReloadConfig } from '@renderer/utils/ipc'
 import { useTranslation } from 'react-i18next'
+import { useNavigate } from 'react-router-dom'
 import { memo, useEffect, useMemo, useState } from 'react'
 import dayjs from 'dayjs'
 import {
@@ -13,7 +14,6 @@ import {
   ArrowUp,
   ArrowDown,
   RefreshCcw,
-  CalendarClock,
   CreditCard,
   Power,
   Pause
@@ -23,6 +23,7 @@ import SubscriptionEmptyState from '@renderer/components/profiles/subscription-e
 import { CharacterMorph } from '@renderer/components/ui/character-morph'
 import { cn } from '@renderer/lib/utils'
 import { calcTraffic } from '@renderer/utils/calc'
+import { splitTariffName } from '@renderer/utils/subscription'
 import { useTrafficStore } from '@renderer/store/traffic-store'
 
 function formatBytes(bytes: number): string {
@@ -90,6 +91,7 @@ ConnectedTimer.displayName = 'ConnectedTimer'
 // работающая часть, менялась только оболочка вокруг неё.
 const Home: React.FC = () => {
   const { t } = useTranslation()
+  const navigate = useNavigate()
   const { appConfig, patchAppConfig } = useAppConfig()
   const {
     mainSwitchMode = 'tun',
@@ -206,10 +208,38 @@ const Home: React.FC = () => {
       ? t('pages.home.subscriptionExpiringToday')
       : t('pages.home.subscriptionExpiring', { count: daysRemaining })
 
-  // Строка подписки высотой 44 не вмещает ни объявление провайдера, ни три
-  // подписанных цифры. Они не выброшены: полный текст висит подсказкой строки,
-  // так что «сколько осталось» и «что пишет провайдер» по-прежнему доступны, но
-  // не занимают пол-экрана.
+  // Лимит трафика есть только когда есть от чего считать. При total <= 0
+  // (безлимит — основной случай владельца) полоса расхода была бы ложью:
+  // делить не на что, а пустая шкала читается как «трафик кончился».
+  const hasTrafficLimit = trafficTotal > 0
+  const usedShare = hasTrafficLimit
+    ? Math.min(100, Math.round((trafficUsed / trafficTotal) * 100))
+    : 0
+  // Пороги те же, что на странице подписки (subscription.tsx:60): иначе один и
+  // тот же остаток красился бы на двух экранах по-разному.
+  const usedShareColor =
+    usedShare >= 90 ? 'bg-destructive' : usedShare >= 70 ? 'bg-warning' : 'bg-primary'
+
+  // Имя и чип состояния — из общего splitTariffName, того же, которым живёт
+  // страница подписки. Копии здесь быть не должно: эвристика разбора хвоста
+  // названия держится на договорённости с кабинетом, и когда панель отдаст
+  // свой заголовок статуса, править надо будет одно место.
+  const { name: tariffName, status: tariffStatus } = splitTariffName(currentProfile?.name)
+  // Запасная буква для знака — первая от названия тарифа, а не зашитая «S»:
+  // профиль может быть и не наш.
+  const tariffInitial = (tariffName || 'S').charAt(0).toUpperCase()
+  // Чип: у истекающей подписки состояние важнее названия тарифа, поэтому
+  // разобранный хвост («Active») уступает место сроку.
+  const stateChip = isExpired
+    ? t('pages.more.subscription.expired')
+    : showExpiryNotice
+      ? t('pages.home.statusExpiring')
+      : tariffStatus
+
+  // Строка высотой 52 не вмещает ни объявление провайдера, ни три подписанных
+  // цифры. Они не выброшены: полный текст висит подсказкой строки, так что
+  // «сколько осталось» и «что пишет провайдер» по-прежнему доступны, но не
+  // занимают пол-экрана.
   const rowTooltip = useMemo(() => {
     if (!currentProfile) return undefined
     const lines: string[] = [currentProfile.name]
@@ -227,6 +257,10 @@ const Home: React.FC = () => {
       lines.push(`${t('pages.home.expires')} ${expireDate}`)
     }
     if (showExpiryNotice) {
+      // Словесный отсчёт («Подписка закончится через 2 дня») в самой строке
+      // больше не выводится — там стоят чип и плитка срока. Текст не потерян:
+      // он первой строкой подсказки, вместе с советом продлить.
+      lines.push(expiryTitle)
       lines.push(
         isExpired
           ? t('pages.home.subscriptionExpiredHint')
@@ -245,6 +279,7 @@ const Home: React.FC = () => {
     expireDate,
     showExpiryNotice,
     isExpired,
+    expiryTitle,
     t
   ])
 
@@ -299,7 +334,7 @@ const Home: React.FC = () => {
         aria-label={t('common.update')}
         title={t('common.update')}
         aria-busy={updating}
-        className="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-lg text-muted-foreground outline-none transition-colors hover:bg-accent/50 hover:text-foreground focus-visible:ring-2 focus-visible:ring-[color:var(--sn-accent)] disabled:pointer-events-none disabled:opacity-40"
+        className="relative z-10 flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-lg text-muted-foreground outline-none transition-colors hover:bg-accent/50 hover:text-foreground focus-visible:ring-2 focus-visible:ring-[color:var(--sn-accent)] disabled:opacity-40"
       >
         <RefreshCcw className={cn('size-3.5', updating && 'animate-spin')} />
       </button>
@@ -471,84 +506,213 @@ const Home: React.FC = () => {
             </div>
           </div>
 
-          {/* --- Предупреждение об истечении ------------------------------
-              Сведений о тарифе на главном экране нет: он про подключение, а
-              подписка живёт своим разделом в капсуле (решение владельца
-              30.09.2026). Исключение одно — когда подписка вот-вот кончится:
-              промолчать об этом значит дать человеку остаться без доступа. */}
-          {currentProfile && showExpiryNotice && (
+          {/* --- Живая строка подписки ------------------------------------
+              Решение владельца 30.09.2026: строка стоит на ГЛАВНОЙ, над списком
+              серверов — «так всегда будет понятно». Прежний блок предупреждения
+              об истечении отсюда убран: строка сама умеет это состояние, и два
+              блока об одном и том же на одном экране не нужны. Полная мера
+              тарифа (цена, устройства, шкала с подписями) живёт на странице
+              подписки — здесь только «кто, сколько осталось, до какого числа».
+
+              Состояние задано двумя локальными переменными на корне строки:
+              --sn-row — акцентная семья (синий / красный), --sn-live — семья
+              «живого» индикатора (зелёный / красный). Поэтому ниже почти нет
+              развилок по состоянию: перекрасить строку — поменять две строки
+              здесь, а не восемь классов по всей разметке. */}
+          {currentProfile && (
             <div
               data-guide="home-profile-header"
               role={showExpiryNotice ? 'status' : undefined}
               title={rowTooltip}
               className={cn(
-                'flex h-11 shrink-0 items-center gap-2 rounded-xl border px-2.5',
+                'relative flex shrink-0 items-center gap-2.5 rounded-xl border px-2',
                 'backdrop-blur-xl transition-colors',
+                // 52 — базовая высота. При лимите строка вырастает до 56 и
+                // отдаёт нижние 6px полосе трафика: иначе полоса села бы на
+                // текст. Безлимит — основной случай владельца — остаётся на 52.
+                hasTrafficLimit ? 'h-14 pb-1.5' : 'h-13',
                 showExpiryNotice
-                  ? 'border-destructive/40 bg-destructive/10'
-                  : 'border-stroke bg-card/60'
+                  ? 'border-destructive/40 bg-destructive/10 hover:border-destructive/60 [--sn-live:var(--destructive)] [--sn-row:var(--destructive)]'
+                  : 'border-stroke bg-card/60 hover:border-input [--sn-live:var(--success)] [--sn-row:var(--sn-accent)]'
               )}
+              style={{
+                // Слабый подсвет слева — он отделяет строку от карточек списка,
+                // у которых фон такой же. Держим на --sn-row, чтобы красное
+                // состояние не пришлось красить отдельным правилом.
+                // ⚠️ На светлой «шампани» синий подсвет почти не виден (о синем
+                // по шампани предупреждает main.css:67). Это допустимо: подсвет
+                // здесь украшение, ни одного смысла на нём не висит.
+                backgroundImage:
+                  'radial-gradient(130% 220% at 0% 50%, color-mix(in oklab, var(--sn-row) 12%, transparent), transparent 62%)'
+              }}
             >
-              {showExpiryNotice ? (
-                <>
-                  <CalendarClock className="size-4 shrink-0 text-destructive" aria-hidden />
-                  <span className="min-w-0 flex-1 truncate text-sm font-medium text-destructive">
-                    {expiryTitle}
+              {/* Вся строка ведёт в раздел «Подписка». Кликабельная зона — это
+                  отдельная кнопка поверх строки, а не onClick на контейнере:
+                  внутри уже стоят свои кнопки, а <button> в <button> вкладывать
+                  нельзя. Кнопки действий лежат выше по z-index, поэтому их
+                  нажатия до этой кнопки не доходят и stopPropagation не нужен.
+                  ⚠️ Кликабельность ничем не подписана: шеврон не поставлен,
+                  чтобы не спорить с кнопкой обновления справа. Заметно только по
+                  наведению — это осознанный размен из концепта. */}
+              <button
+                type="button"
+                onClick={() => navigate('/subscription')}
+                aria-label={t('shell.navSubscription')}
+                className="absolute inset-0 cursor-pointer rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--sn-accent)]"
+              />
+
+              {/* Знак подписки. Логотип провайдера, если он пришёл, иначе первая
+                  буква названия. Буква лежит в кругу всегда, а картинка — поверх
+                  неё, поэтому битая ссылка просто открывает букву и не оставляет
+                  дыру. pointer-events-none обязателен: знак спозиционирован и без
+                  этого перехватывал бы клики у кнопки-подложки. */}
+              <div
+                aria-hidden
+                className="pointer-events-none relative flex size-[30px] shrink-0 items-center justify-center rounded-full border border-[color:color-mix(in_oklab,var(--sn-row)_38%,transparent)] text-sm font-bold leading-none text-foreground"
+                style={{
+                  background:
+                    'radial-gradient(at 32% 28%, color-mix(in oklab, var(--sn-row) 34%, transparent), color-mix(in oklab, var(--sn-row) 10%, transparent))'
+                }}
+              >
+                {tariffInitial}
+                {currentProfile.logo && (
+                  <img
+                    src={currentProfile.logo}
+                    alt=""
+                    className="absolute inset-0 size-full rounded-full object-cover"
+                    onError={(e) => {
+                      ;(e.target as HTMLImageElement).style.display = 'none'
+                    }}
+                  />
+                )}
+
+                {/* Точка состояния — то самое «живое»: мягкий ритм 2.6s, а не
+                    мерцание. Пульс рисует отдельное кольцо animate-ping, потому
+                    что своих @keyframes под это в main.css заводить нельзя (файл
+                    не наш), а ping даёт ровно тот же смысл. Прозрачность кольца
+                    задана цветом, а не opacity-*: ping сам гонит opacity от 1 к 0
+                    и утилиту бы перебил.
+                    ⚠️ motion-reduce убирает кольцо целиком. Это единственная
+                    анимация на экране, которая идёт постоянно, даже когда VPN
+                    выключен, — для «уменьшить движение» первый кандидат. */}
+                <span className="absolute -right-px -bottom-px flex size-[9px] items-center justify-center">
+                  <span className="absolute size-full animate-ping rounded-full bg-[color:color-mix(in_oklab,var(--sn-live)_55%,transparent)] [animation-duration:2.6s] motion-reduce:hidden" />
+                  <span className="relative size-full rounded-full border-2 border-card bg-[color:var(--sn-live)]" />
+                </span>
+              </div>
+
+              {/* Центр — единственная тянущаяся зона строки. min-w-0 обязателен:
+                  без него длинное имя тарифа не обрежется, а растянет строку и
+                  выдавит плитку срока за край. */}
+              <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                <div className="flex min-w-0 items-center gap-1.5">
+                  <span className="truncate text-sm font-semibold text-foreground">
+                    {tariffName || t('pages.more.subscription.none')}
                   </span>
-                  {/* Кнопка продления — единственное действие, которое в этот
-                      момент имеет смысл, поэтому стоит прямо в строке. */}
-                  {renewAction && (
-                    <button
-                      type="button"
-                      onClick={() => open(renewAction.url)}
-                      className="flex h-7 shrink-0 cursor-pointer items-center gap-1.5 rounded-lg border border-destructive/40 px-2 text-xs font-semibold text-destructive outline-none transition-colors hover:bg-destructive/15 focus-visible:ring-2 focus-visible:ring-[color:var(--sn-accent)]"
-                    >
-                      <CreditCard className="size-3.5 shrink-0" aria-hidden />
-                      <span className="max-w-28 truncate">{renewAction.label}</span>
-                    </button>
-                  )}
-                </>
-              ) : (
-                <>
-                  {currentProfile.logo && (
-                    <img
-                      src={currentProfile.logo}
-                      alt=""
-                      className="size-5 shrink-0 rounded-full"
-                      onError={(e) => {
-                        ;(e.target as HTMLImageElement).style.display = 'none'
-                      }}
-                    />
-                  )}
-                  <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
-                    {currentProfile.name}
-                  </span>
-                  {/* Остаток трафика и дней — одной строкой цифр. Бесконечность
-                      значком: «Безлимит» словом в эту ширину не влезает. */}
-                  {subscription && (
-                    <span className="flex shrink-0 items-center gap-1.5 text-xs tabular-nums text-muted-foreground">
-                      {trafficTotal > 0 ? (
-                        <span>{formatBytes(trafficRemaining)}</span>
-                      ) : (
-                        <InfinityIcon className="size-3.5" aria-hidden />
-                      )}
-                      <span className="h-2.5 w-px bg-stroke" />
-                      {/* profile.dayShort — уже существующий короткий «д»,
-                          ровно так же его склеивает карточка профиля
-                          (profile-item.tsx:120). Новый ключ под это не нужен. */}
-                      {expireTimestamp > 0 ? (
-                        <span>
-                          {daysRemaining}
-                          {t('profile.dayShort')}
-                        </span>
-                      ) : (
-                        <InfinityIcon className="size-3.5" aria-hidden />
-                      )}
+                  {stateChip && (
+                    <span className="flex h-[17px] shrink-0 items-center rounded-full border border-[color:color-mix(in_oklab,var(--sn-live)_28%,transparent)] bg-[color:color-mix(in_oklab,var(--sn-live)_14%,transparent)] px-1.5 text-xs font-semibold leading-none text-[color:var(--sn-live)]">
+                      {stateChip}
                     </span>
                   )}
-                </>
+                </div>
+
+                <div className="flex min-w-0 items-center gap-1.5 overflow-hidden text-xs tabular-nums text-muted-foreground">
+                  {/* При безлимите главная величина строки — не трафик, а срок.
+                      Поэтому «Безлимит» здесь только подсвечен весом и цветом, а
+                      крупным кеглем набрано число дней справа. */}
+                  <span className="shrink-0 font-semibold text-foreground/85">
+                    {hasTrafficLimit ? formatBytes(trafficRemaining) : t('pages.home.unlimited')}
+                  </span>
+                  {hasTrafficLimit && (
+                    <span className="shrink-0">{t('pages.subscription.trafficLeft')}</span>
+                  )}
+                  {expireTimestamp > 0 && (
+                    <>
+                      <span
+                        aria-hidden
+                        className="size-[3px] shrink-0 rounded-full bg-muted-foreground opacity-50"
+                      />
+                      <span className="truncate">
+                        {t('pages.subscription.until', { date: expireDate })}
+                      </span>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* Плитка срока — единственный крупный кегль в строке: при
+                  безлимите трафика (основной случай владельца) остаётся ровно
+                  одно число, за которое цепляется глаз.
+                  ⚠️ Бессрочная подписка (expire = 0) обязана показывать ∞: «0 дн»
+                  на ней было бы прямой ложью. */}
+              <div
+                className={cn(
+                  'flex h-8 shrink-0 items-center rounded-md px-[9px]',
+                  showExpiryNotice ? 'bg-destructive/15' : 'bg-foreground/6'
+                )}
+              >
+                {expireTimestamp > 0 ? (
+                  <span className="flex items-baseline gap-[3px]">
+                    <span
+                      className={cn(
+                        'text-lg font-semibold leading-5 tabular-nums',
+                        showExpiryNotice ? 'text-destructive' : 'text-foreground'
+                      )}
+                    >
+                      {daysRemaining}
+                    </span>
+                    {/* profile.dayShort — уже существующий короткий «д», ровно так
+                        же его склеивает карточка профиля (profile-item.tsx:120).
+                        Новый ключ под это не нужен. */}
+                    <span
+                      className={cn(
+                        'text-xs',
+                        showExpiryNotice ? 'text-destructive/75' : 'text-muted-foreground'
+                      )}
+                    >
+                      {t('profile.dayShort')}
+                    </span>
+                  </span>
+                ) : (
+                  <InfinityIcon
+                    aria-hidden
+                    className={cn(
+                      'size-[17px]',
+                      showExpiryNotice ? 'text-destructive' : 'text-foreground'
+                    )}
+                  />
+                )}
+              </div>
+
+              {/* Справа одна кнопка, а не две: когда подписка кончается, продлить
+                  её — единственное осмысленное действие, и оно занимает место
+                  обновления. Обновить в этот момент можно со страницы подписки,
+                  куда ведёт сама строка. */}
+              {showExpiryNotice && renewAction ? (
+                <button
+                  type="button"
+                  onClick={() => open(renewAction.url)}
+                  className="relative z-10 flex h-7 shrink-0 cursor-pointer items-center gap-1.5 rounded-lg border border-destructive/40 px-2 text-xs font-semibold text-destructive outline-none transition-colors hover:bg-destructive/15 focus-visible:ring-2 focus-visible:ring-[color:var(--sn-accent)]"
+                >
+                  <CreditCard className="size-3.5 shrink-0" aria-hidden />
+                  <span className="max-w-24 truncate">{renewAction.label}</span>
+                </button>
+              ) : (
+                refreshButton
               )}
-              {refreshButton}
+
+              {/* Полоса расхода только при лимите — см. комментарий к usedShare.
+                  Лежит в нижних 6px, которые строка специально под неё выросла.
+                  pointer-events-none: полоса спозиционирована поверх подложки и
+                  без этого съедала бы клики по низу строки. */}
+              {hasTrafficLimit && (
+                <div className="pointer-events-none absolute inset-x-3 bottom-1.5 h-0.5 overflow-hidden rounded-full bg-muted-foreground/20">
+                  <div
+                    className={cn('h-full rounded-full transition-all', usedShareColor)}
+                    style={{ width: `${Math.max(2, usedShare)}%` }}
+                  />
+                </div>
+              )}
             </div>
           )}
 

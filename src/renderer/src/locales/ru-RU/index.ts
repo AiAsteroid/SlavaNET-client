@@ -170,6 +170,21 @@ export default {
 
   pages: {
     subscription: {
+      meterTraffic: 'Трафик',
+      updatedAgo: 'Обновлено {{ago}}',
+      updatedNever: 'Ещё не обновлялась',
+      devices: {
+        title: 'Устройства',
+        titleCount: 'Устройства · {{used}} из {{limit}}',
+        loading: 'Смотрим, кто подключён…',
+        empty: 'Устройств пока не видно',
+        emptyHint: 'Если устройства есть, панель могла не ответить — обновите подписку',
+        signInHint: 'Войдите в аккаунт, чтобы увидеть подключённые устройства',
+        error: 'Не удалось получить список устройств',
+        lastSeen: 'активно {{ago}}',
+        lastSeenUnknown: 'время последней активности неизвестно',
+        platformUnknown: 'Платформа неизвестна',
+      },
       title: 'Подписка',
       until: 'до {{date}}',
       unlimited: 'Безлимит',
@@ -227,6 +242,7 @@ export default {
       },
     },
     home: {
+      statusExpiring: 'Истекает',
       connectTitle: 'Подписка не подключена',
       connectDescription: 'Войдите в аккаунт — подписка добавится сама.',
       connectButton: 'Добавить подписку',

@@ -468,6 +468,160 @@ export function hasCabinetSession(): boolean {
   return getCabinetSession() !== null
 }
 
+// ── Подключённые устройства ─────────────────────────────────────────────────
+// Кабинет отдаёт их по /cabinet/subscription/devices, забирая из панели
+// Remnawave. Это отдельный от входа сценарий: сессия уже есть, подтверждать
+// ничего не нужно — поэтому флаг running здесь не используется и запрос не
+// мешает идущему входу.
+//
+// ⚠️ Запрос НЕ делается на старте приложения — только когда человек открыл
+// раздел подписки. Это поход в сеть с bearer-токеном, и совершать его ради
+// экрана, на который никто не смотрел, незачем.
+const PATH_DEVICES = '/cabinet/subscription/devices'
+
+// То, что реально приходит в элементе массива devices. Пишем как unknown-поля
+// и разбираем руками: кабинет прокидывает значения панели почти как есть, и
+// любое из них может оказаться null.
+interface RawCabinetDevice {
+  hwid?: unknown
+  platform?: unknown
+  device_model?: unknown
+  local_name?: unknown
+  app?: unknown
+  os_version?: unknown
+  last_seen_at?: unknown
+  first_seen_at?: unknown
+  created_at?: unknown
+}
+
+// Панель отдаёт времена ISO-строками, кабинет прокидывает их как есть. Разбор
+// здесь, а не в интерфейсе: в приложении все даты — числа (ProfileItem.updated,
+// SubscriptionUserInfo.expire), и рендерер не должен ловить Invalid Date.
+function deviceTime(raw: unknown): number | undefined {
+  if (typeof raw === 'number' && Number.isFinite(raw) && raw > 0) {
+    // Секунды или миллисекунды: 1e12 мс — это 2001 год, а epoch в секундах
+    // такого значения не достигнет ещё тысячи лет.
+    return raw < 1e12 ? raw * 1000 : raw
+  }
+  if (typeof raw !== 'string' || !raw) return undefined
+  const ms = Date.parse(raw)
+  return Number.isFinite(ms) ? ms : undefined
+}
+
+function optionalText(raw: unknown): string | undefined {
+  return typeof raw === 'string' && raw.trim() ? raw : undefined
+}
+
+function mapDevice(raw: RawCabinetDevice): CabinetDevice {
+  return {
+    // hwid может не прийти вовсе: кабинет берёт первое из hwid/deviceId/id, и
+    // если панель не дала ни одного — будет null. Устройство всё равно
+    // показываем: прятать от человека железку, которая жжёт его лимит, хуже,
+    // чем показать её без идентификатора. Рендереру нужен ключ для списка —
+    // на пустом hwid он обязан падать на индекс.
+    hwid: typeof raw.hwid === 'string' ? raw.hwid : '',
+    // Кабинет сам подставляет сюда 'Unknown', когда панель молчит, — так и
+    // прокидываем, решение про подпись за интерфейсом.
+    platform: typeof raw.platform === 'string' ? raw.platform : '',
+    model: typeof raw.device_model === 'string' ? raw.device_model : '',
+    localName: optionalText(raw.local_name),
+    app: optionalText(raw.app),
+    osVersion: optionalText(raw.os_version),
+    // last_seen_at кабинет добавил позже, а created_at у него исторически
+    // значит «последняя активность» (в него первым идёт updatedAt панели).
+    // Поэтому фолбэк именно такой: на кабинете постарше поле новое пустое.
+    lastSeenAt: deviceTime(raw.last_seen_at) ?? deviceTime(raw.created_at),
+    firstSeenAt: deviceTime(raw.first_seen_at)
+  }
+}
+
+// Своё сообщение, а не connectErrorMessage: тот говорит «не удалось получить
+// подписку», и на экране устройств это врёт про то, что именно сломалось.
+function devicesErrorMessage(status: number): string {
+  return `${t('error.devicesUnavailable')} (${status})`
+}
+
+let devicesInFlight: Promise<CabinetDevicesResult> | null = null
+
+// Список устройств для раздела подписки. Никогда не бросает: «устройств нет»,
+// «надо войти» и «не смогли спросить» — это разные ответы, а не исключения,
+// и интерфейс обязан их различать (см. CabinetDevicesResult).
+export function fetchCabinetDevices(): Promise<CabinetDevicesResult> {
+  // Раздел подписки легко открыть дважды (перерисовка, возврат на экран), а
+  // два параллельных запроса с истёкшим токеном полезут обновлять его каждый
+  // своим refresh: rotate:true заменяет refresh-токен, и второй запрос пойдёт
+  // уже отозванным — сессия умрёт на ровном месте. Поэтому один запрос в полёте.
+  if (devicesInFlight) return devicesInFlight
+  const run = loadCabinetDevices().finally(() => {
+    devicesInFlight = null
+  })
+  devicesInFlight = run
+  return run
+}
+
+async function loadCabinetDevices(): Promise<CabinetDevicesResult> {
+  // Без сессии в сеть не идём вообще. Пустой Bearer вернул бы тот же 401, но
+  // это лишний запрос, а главное — интерфейсу здесь нужно предложить вход, а
+  // не показывать «устройств нет».
+  if (!getCabinetSession()) return { state: 'unauthorized' }
+
+  let res: AxiosResponse
+  try {
+    res = await authorizedGet(PATH_DEVICES)
+  } catch {
+    // Сети нет — это «пока не знаем», а не «устройств нет».
+    return { state: 'error', message: t('error.connectNetwork') }
+  }
+
+  // 401 приходит уже ПОСЛЕ одного обновления токена внутри authorizedGet.
+  // Сессию здесь не стираем: провал одного экрана — не повод выкидывать
+  // человека из аккаунта, а состояния unauthorized интерфейсу хватает, чтобы
+  // предложить вход. Учти в рендерере: hasCabinetSession() при этом может
+  // всё ещё отвечать true.
+  if (res.status === 401) return { state: 'unauthorized' }
+  if (res.status === 403) return { state: 'error', message: t('error.connectAccountDisabled') }
+  if (res.status === 429) return { state: 'error', message: t('error.connectTooManyRequests') }
+  if (res.status === 404) {
+    // 404 у этого маршрута двусмысленный: либо у аккаунта нет подписки, либо
+    // кабинет старый и ручки просто нет. Разделяем по detail — иначе клиент
+    // соврёт «нет подписки» человеку с живой подпиской.
+    return detailOf(res.data) === 'No subscription found'
+      ? { state: 'noSubscription' }
+      : { state: 'error', message: devicesErrorMessage(res.status) }
+  }
+  if (res.status !== 200) {
+    return { state: 'error', message: devicesErrorMessage(res.status) }
+  }
+
+  // 200 с не-объектом в теле — это не «устройств нет», а что-то ответило
+  // вместо кабинета (страница ошибки прокси, например). Лучше честная ошибка с
+  // кнопкой «повторить», чем пустой список, которому человек поверит.
+  if (typeof res.data !== 'object' || res.data === null) {
+    return { state: 'error', message: devicesErrorMessage(res.status) }
+  }
+  const body = res.data as { devices?: unknown; total?: unknown; device_limit?: unknown }
+  // Элемент списка может оказаться null — пропускаем такой, а не падаем на
+  // всём разделе из-за одной битой записи.
+  const rawDevices: unknown[] = Array.isArray(body.devices) ? body.devices : []
+  const devices = rawDevices
+    .filter((d): d is RawCabinetDevice => typeof d === 'object' && d !== null)
+    .map(mapDevice)
+  // total приходит из панели и в теории может расходиться с длиной списка.
+  // Берём максимум: занизить счётчик на экране лимита хуже, чем завысить.
+  const reported = typeof body.total === 'number' && Number.isFinite(body.total) ? body.total : 0
+  const total = Math.max(reported, devices.length)
+  // device_limit = 0 означает «лимит не задан», а не «ноль устройств», —
+  // поэтому наружу отдаём undefined, чтобы интерфейс не нарисовал «0 из 0».
+  const limit =
+    typeof body.device_limit === 'number' && body.device_limit > 0 ? body.device_limit : undefined
+
+  // Пустой список — нормальное состояние, а не отказ. И ровно то же (200 и [])
+  // кабинет отдаёт, когда панель недоступна: по ответу эти два случая не
+  // отличаются. Поэтому оба — state: 'ok', а текст на экране должен быть
+  // сдержанным («устройств пока не видно»), а не утверждать, что их нет.
+  return { state: 'ok', devices, total, limit }
+}
+
 // Anything unrecognised falls back to a generic message rather than leaking a
 // raw payload into the interface.
 export function connectErrorMessage(detail?: string, status?: number): string {

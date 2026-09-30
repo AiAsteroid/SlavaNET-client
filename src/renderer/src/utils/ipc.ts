@@ -2,7 +2,10 @@ import { TitleBarOverlayOptions } from 'electron'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function ipcErrorWrapper(response: any): any {
-  if (typeof response === 'object' && 'invokeError' in response) {
+  // null проверяем отдельно: typeof null === 'object', и оператор `in` на null
+  // бросает TypeError — то есть любой обработчик, честно вернувший null
+  // (getPendingSubscriptionConnect, например), падал вместо ответа.
+  if (response !== null && typeof response === 'object' && 'invokeError' in response) {
     throw response.invokeError
   } else {
     return response
@@ -350,6 +353,14 @@ export async function cancelSubscriptionConnect(): Promise<void> {
 // Used to restore the card after the person navigates away and back.
 export async function getPendingSubscriptionConnect(): Promise<ConnectStatusEvent | null> {
   return ipcErrorWrapper(await window.electron.ipcRenderer.invoke('getPendingSubscriptionConnect'))
+}
+
+// Устройства, подключённые к подписке. Внутри — запрос в кабинет с токеном,
+// поэтому звать только когда человек открыл раздел подписки, и не при старте
+// приложения. Не бросает на «устройств нет» и на «нужен вход»: это состояния
+// в ответе (CabinetDevicesResult.state), а не ошибки.
+export async function fetchCabinetDevices(): Promise<CabinetDevicesResult> {
+  return ipcErrorWrapper(await window.electron.ipcRenderer.invoke('fetchCabinetDevices'))
 }
 
 export async function downloadAndInstallUpdate(version: string): Promise<void> {
