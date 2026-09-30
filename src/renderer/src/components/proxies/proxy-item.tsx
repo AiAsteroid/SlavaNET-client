@@ -1,4 +1,5 @@
 import { Button } from '@renderer/components/ui/button'
+import ProxyName from '@renderer/components/base/proxy-name'
 import { Card, CardContent } from '@renderer/components/ui/card'
 import { cn } from '@renderer/lib/utils'
 import { mihomoUnfixedProxy } from '@renderer/utils/ipc'
@@ -112,9 +113,7 @@ const ProxyItem: React.FC<Props> = React.memo((props) => {
             <>
               <div className="flex flex-col gap-0 flex-1 min-w-0">
                 <div className="flex items-center gap-1.5">
-                  <span className="flag-emoji text-sm truncate" title={proxy.name}>
-                    {proxy.name}
-                  </span>
+                  <ProxyName name={proxy.name} className="text-sm" />
                 </div>
                 <div className="text-[11px] text-muted-foreground leading-none mt-0.5">
                   <span>{displayType}</span>
@@ -152,9 +151,7 @@ const ProxyItem: React.FC<Props> = React.memo((props) => {
           ) : (
             <>
               <div className="flex items-center gap-1.5 text-ellipsis overflow-hidden whitespace-nowrap">
-                <span className="flag-emoji text-sm truncate" title={proxy.name}>
-                  {proxy.name}
-                </span>
+                <ProxyName name={proxy.name} className="text-sm" />
                 {proxyDisplayLayout === 'single' && (
                   <span className="text-muted-foreground text-xs shrink-0" title={displayType}>
                     {displayType}

@@ -1,4 +1,5 @@
 import { Avatar, AvatarImage } from '@renderer/components/ui/avatar'
+import ProxyName from '@renderer/components/base/proxy-name'
 import { Badge } from '@renderer/components/ui/badge'
 import { Button } from '@renderer/components/ui/button'
 import { Card, CardContent } from '@renderer/components/ui/card'
@@ -399,9 +400,11 @@ const Proxies: React.FC = () => {
                   )}
                   <div className={`flex ${groupDisplayLayout === 'double' ? 'flex-col gap-0.5' : 'items-center gap-2'} min-w-0`}>
                     <div className="flex items-center gap-2">
-                      <span className="flag-emoji text-sm font-semibold truncate leading-tight">
-                        {group.name}
-                      </span>
+                      <ProxyName
+                        name={group.name}
+                        size={18}
+                        className="text-sm font-semibold leading-tight"
+                      />
                       {showMeta && (
                         <Badge
                           variant="ghost"
@@ -412,9 +415,11 @@ const Proxies: React.FC = () => {
                       )}
                     </div>
                     {showMeta && (
-                      <span className="flag-emoji text-xs text-muted-foreground truncate leading-tight">
-                        {group.now}
-                      </span>
+                      <ProxyName
+                        name={group.now}
+                        size={14}
+                        className="text-xs text-muted-foreground leading-tight"
+                      />
                     )}
                   </div>
                 </div>

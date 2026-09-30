@@ -1,5 +1,6 @@
 import { toast } from 'sonner'
 import BasePage from '@renderer/components/base/base-page'
+import ProxyName from '@renderer/components/base/proxy-name'
 import { useAppConfig } from '@renderer/hooks/use-app-config'
 import { useControledMihomoConfig } from '@renderer/hooks/use-controled-mihomo-config'
 import { useProfileConfig } from '@renderer/hooks/use-profile-config'
@@ -453,16 +454,18 @@ const Home: React.FC = () => {
 
           {/* Group & Proxy selectors */}
           {firstGroup && (
-            <div className="flag-emoji flex flex-col items-center mx-auto w-full max-w-3xs max-h-16">
+            <div className="flex flex-col items-center mx-auto w-full max-w-3xs max-h-16">
               <div
                 data-guide="home-group-selector"
                 className="w-full cursor-pointer"
                 onClick={() => navigate('/proxies', { state: { fromHome: true } })}
               >
                 <div className="flex items-center justify-between h-9 rounded-2xl border border-stroke pl-3 pr-1 py-3 backdrop-blur-xl bg-card/50 transition-colors hover:bg-card/70">
-                  <div className="flag-emoji text-sm truncate max-w-52">
-                    {firstGroup.now || firstGroup.name}
-                  </div>
+                  <ProxyName
+                    name={firstGroup.now || firstGroup.name}
+                    size={18}
+                    className="text-sm max-w-52"
+                  />
                   <ChevronRight />
                 </div>
               </div>

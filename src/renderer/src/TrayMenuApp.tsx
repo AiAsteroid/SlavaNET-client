@@ -14,6 +14,7 @@ import {
   AccordionTrigger
 } from '@renderer/components/ui/accordion'
 import { cn } from '@renderer/lib/utils'
+import ProxyName from '@renderer/components/base/proxy-name'
 
 interface TrafficData {
   up: number
@@ -141,7 +142,7 @@ const TrayMenuApp: React.FC = () => {
                 <AccordionTrigger className="py-2 px-2 rounded-lg hover:bg-accent/50 hover:no-underline">
                   <div className="flex items-center justify-between w-full pr-2">
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium">{group.name}</span>
+                      <ProxyName name={group.name} className="text-sm font-medium" />
                       <Badge variant="secondary" className="text-[10px] h-4 px-1.5">
                         {group.type}
                       </Badge>
@@ -195,14 +196,11 @@ const TrayMenuApp: React.FC = () => {
                             {isActive && (
                               <IoCheckmarkCircle className="text-gradient-end-power-on text-sm flex-shrink-0" />
                             )}
-                            <span
-                              className={cn(
-                                'text-xs truncate',
-                                isActive && 'text-foreground font-medium'
-                              )}
-                            >
-                              {proxy.name}
-                            </span>
+                            <ProxyName
+                              name={proxy.name}
+                              size={14}
+                              className={cn('text-xs', isActive && 'text-foreground font-medium')}
+                            />
                           </div>
                           <span
                             className={cn(
