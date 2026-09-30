@@ -9,6 +9,7 @@ import {
   InfinityIcon,
   Laptop,
   LogIn,
+  LogOut,
   MonitorSmartphone,
   RefreshCcw,
   Smartphone
@@ -20,7 +21,7 @@ import { Spinner } from '@renderer/components/ui/spinner'
 import { useProfileConfig } from '@renderer/hooks/use-profile-config'
 import { useLoginStore } from '@renderer/store/login-store'
 import { calcTraffic } from '@renderer/utils/calc'
-import { fetchCabinetDevices } from '@renderer/utils/ipc'
+import { fetchCabinetDevices, hasCabinetSession, signOutOfCabinet } from '@renderer/utils/ipc'
 import { splitTariffName } from '@renderer/utils/subscription'
 import { cn } from '@renderer/lib/utils'
 
@@ -215,6 +216,53 @@ const Subscription: React.FC = () => {
       aliveRef.current = false
     }
   }, [currentProfile, loadDevices])
+
+  // Вход завершился — перечитать устройства немедленно.
+  //
+  // ⚠️ Без этого раздел оставался с «войдите в аккаунт» и после успешного
+  // входа. Расчёт был на то, что подписка переимпортируется, у профиля
+  // сменится updated, сменится ключ кэша и эффект выше сработает сам. Но у
+  // того, кто уже подписан, импорт пропускается: адрес подписки тот же, и
+  // второй профиль заводить нельзя (index.ts, проверка по url). Профиль не
+  // менялся — значит и перечитывать было нечему.
+  useEffect(() => {
+    const onStatus = (_e: unknown, payload: ConnectStatusEvent): void => {
+      if (payload.status !== 'done') return
+      devicesCache = null
+      void loadDevices(true)
+    }
+    window.electron.ipcRenderer.on('subscription-connect-status', onStatus)
+    return (): void => {
+      window.electron.ipcRenderer.removeAllListeners('subscription-connect-status')
+    }
+  }, [loadDevices])
+
+  // Есть ли вообще сессия кабинета — от этого зависит строка выхода. Отдельным
+  // вопросом, а не выводом из ответа об устройствах: тот отвечает «error» и
+  // когда панель молчит, а аккаунт при этом подключён.
+  const [signedIn, setSignedIn] = useState(false)
+  useEffect(() => {
+    let cancelled = false
+    hasCabinetSession()
+      .then((v) => {
+        if (!cancelled) setSignedIn(v)
+      })
+      .catch(() => {
+        // не смогли спросить — считаем, что выходить не из чего
+      })
+    return (): void => {
+      cancelled = true
+    }
+  }, [devices])
+
+  const onSignOut = async (): Promise<void> => {
+    await signOutOfCabinet()
+    setSignedIn(false)
+    // Кэш обязан протухнуть сразу: иначе ещё минуту показывали бы список
+    // устройств аккаунта, из которого только что вышли.
+    devicesCache = null
+    await loadDevices(true)
+  }
 
   const deviceList = devices?.state === 'ok' ? devices.devices : []
   const deviceLimit = devices?.state === 'ok' ? devices.limit : undefined
@@ -645,6 +693,18 @@ const Subscription: React.FC = () => {
               disabled={!canUpdate || updating}
               busy={updating}
               onClick={onUpdate}
+            />
+          )}
+          {/* Выход из аккаунта. Подписку он НЕ трогает: сессия кабинета и
+              конфигурация VPN — разные вещи, и человек, отключивший аккаунт,
+              не должен остаться без интернета. Строка появляется только когда
+              выходить есть из чего. */}
+          {signedIn && (
+            <Row
+              icon={LogOut}
+              label={t('pages.subscription.signOut')}
+              className="text-destructive"
+              onClick={onSignOut}
             />
           )}
         </Group>

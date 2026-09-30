@@ -170,6 +170,7 @@ export default {
 
   pages: {
     subscription: {
+      signOut: 'Выйти из аккаунта',
       meterTraffic: 'Трафик',
       updatedAgo: 'Обновлено {{ago}}',
       updatedNever: 'Ещё не обновлялась',

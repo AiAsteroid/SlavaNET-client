@@ -169,6 +169,7 @@ export default {
 
   pages: {
     subscription: {
+      signOut: 'Sign out',
       meterTraffic: 'Traffic',
       updatedAgo: 'Updated {{ago}}',
       updatedNever: 'Never updated',

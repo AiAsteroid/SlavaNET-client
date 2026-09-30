@@ -244,6 +244,7 @@ export default {
 
   pages: {
     subscription: {
+      signOut: '退出账号',
       meterTraffic: '流量',
       updatedAgo: '{{ago}}更新',
       updatedNever: '尚未更新',
