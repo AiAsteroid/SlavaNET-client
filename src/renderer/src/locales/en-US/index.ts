@@ -361,6 +361,10 @@ export default {
     },
     home: {
       statusExpiring: 'Expiring',
+      corePermissionGrant: 'Grant rights and connect',
+      corePermissionTitle: 'Administrator rights are required',
+      corePermissionText: 'TUN mode brings up a network interface, and the core needs root rights for that. The system will ask for your password once — after that the VPN turns on with the usual button.',
+      corePermissionHint: 'The password goes to the macOS prompt; the app never sees it.',
       connectTitle: 'No subscription yet',
       connectDescription: 'Sign in to your account and the subscription is added for you.',
       connectButton: 'Add subscription',

@@ -366,6 +366,10 @@ export default {
     },
     home: {
       statusExpiring: 'Истекает',
+      corePermissionGrant: 'Выдать права и включить',
+      corePermissionTitle: 'Нужны права администратора',
+      corePermissionText: 'Режим TUN поднимает сетевой интерфейс, а для этого ядру нужны права root. Система попросит пароль один раз — дальше VPN будет включаться обычной кнопкой.',
+      corePermissionHint: 'Пароль уходит системному запросу macOS, приложение его не видит.',
       connectTitle: 'Подписка не подключена',
       connectDescription: 'Войдите в аккаунт — подписка добавится сама.',
       connectButton: 'Добавить подписку',

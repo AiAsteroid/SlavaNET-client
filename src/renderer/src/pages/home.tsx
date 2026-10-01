@@ -4,7 +4,14 @@ import ServerList from '@renderer/components/connect/server-list'
 import { useAppConfig } from '@renderer/hooks/use-app-config'
 import { useControledMihomoConfig } from '@renderer/hooks/use-controled-mihomo-config'
 import { useProfileConfig } from '@renderer/hooks/use-profile-config'
-import { triggerSysProxy, updateTrayIcon, mihomoHotReloadConfig } from '@renderer/utils/ipc'
+import {
+  checkCorePermission,
+  manualGrantCorePermition,
+  mihomoHotReloadConfig,
+  restartCore,
+  triggerSysProxy,
+  updateTrayIcon
+} from '@renderer/utils/ipc'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import { memo, useEffect, useMemo, useState } from 'react'
@@ -19,6 +26,7 @@ import {
   Pause
 } from 'lucide-react'
 import EditInfoModal from '@renderer/components/profiles/edit-info-modal'
+import ConfirmModal from '@renderer/components/base/base-confirm'
 import SubscriptionEmptyState from '@renderer/components/profiles/subscription-empty-state'
 import { CharacterMorph } from '@renderer/components/ui/character-morph'
 import { cn } from '@renderer/lib/utils'
@@ -125,6 +133,13 @@ const Home: React.FC = () => {
   }
 
   const trafficInfo = useTrafficStore((s) => s.traffic)
+
+  // Режим TUN требует, чтобы у двоичного файла ядра были права root. Без них
+  // ядро пишет в лог «configure tun interface: operation not permitted», а
+  // обработчик в main/core/manager.ts:219 молча возвращает tun в выключенное
+  // состояние. Снаружи это выглядит как мёртвая кнопка — именно так и выглядело.
+  const [needsCorePermission, setNeedsCorePermission] = useState(false)
+  const [granting, setGranting] = useState(false)
 
   const [loading, setLoading] = useState(false)
   const [loadingDirection, setLoadingDirection] = useState<'connecting' | 'disconnecting'>(
@@ -283,12 +298,44 @@ const Home: React.FC = () => {
     t
   ])
 
+  // Выдать ядру права и сразу включить VPN: человек нажал кнопку включения,
+  // а не «настроить разрешения», и возвращать его к той же кнопке невежливо.
+  const grantAndConnect = async (): Promise<void> => {
+    if (granting) return
+    setGranting(true)
+    try {
+      await manualGrantCorePermition(['mihomo'])
+      // Сокет ядра выбирается по правам ПРИ ЗАПУСКЕ (main/utils/dirs.ts:68),
+      // поэтому без перезапуска ядро продолжит слушать «безправный» сокет.
+      await restartCore()
+      setNeedsCorePermission(false)
+      await onValueChange(true)
+    } catch (e) {
+      // Отказ от ввода пароля — это не ошибка, человек передумал.
+      const text = `${e}`
+      if (!text.includes('User cancelled') && !text.includes('UserCancelled')) {
+        toast.error(text)
+      }
+      setNeedsCorePermission(false)
+    } finally {
+      setGranting(false)
+    }
+  }
+
   const onValueChange = async (enable: boolean): Promise<void> => {
     setLoading(true)
     setLoadingDirection(enable ? 'connecting' : 'disconnecting')
     try {
       if (enable) {
         if (mainSwitchMode === 'tun') {
+          // Спрашиваем ДО включения, а не разбираем отказ после: ядро, у
+          // которого нет прав, просто не поднимет интерфейс, а конфигурация к
+          // тому моменту уже будет переписана.
+          const permission = await checkCorePermission().catch(() => null)
+          if (permission && permission.mihomo === false) {
+            setNeedsCorePermission(true)
+            return
+          }
           await patchControledMihomoConfig({ tun: { enable: true }, dns: { enable: true } })
           await mihomoHotReloadConfig()
         } else {
@@ -719,6 +766,24 @@ const Home: React.FC = () => {
           {/* --- Список серверов ------------------------------------------ */}
           <ServerList />
         </div>
+      )}
+
+      {needsCorePermission && (
+        <ConfirmModal
+          title={t('pages.home.corePermissionTitle')}
+          description={
+            <div className="space-y-2">
+              <p className="text-sm text-muted-foreground">{t('pages.home.corePermissionText')}</p>
+              <p className="text-xs text-muted-foreground">{t('pages.home.corePermissionHint')}</p>
+            </div>
+          }
+          confirmText={t('pages.home.corePermissionGrant')}
+          cancelText={t('common.cancel')}
+          onChange={(open) => {
+            if (!open) setNeedsCorePermission(false)
+          }}
+          onConfirm={grantAndConnect}
+        />
       )}
     </div>
   )

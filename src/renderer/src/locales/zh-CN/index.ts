@@ -318,6 +318,10 @@ export default {
     },
     home: {
       statusExpiring: '即将到期',
+      corePermissionGrant: '授予权限并连接',
+      corePermissionTitle: '需要管理员权限',
+      corePermissionText: 'TUN 模式需要创建网络接口，内核为此需要 root 权限。系统会要求输入一次密码，之后用普通按钮即可开启 VPN。',
+      corePermissionHint: '密码交给 macOS 系统提示，应用不会看到它。',
       connectTitle: '尚未添加订阅',
       connectDescription: '登录账户后，订阅将自动添加。',
       connectButton: '添加订阅',
