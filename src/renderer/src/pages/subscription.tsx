@@ -986,9 +986,13 @@ const Subscription: React.FC = () => {
               объясняющая сумму: за сколько дней заплачено. Четвёртое
               обязательное — «возврата не будет» — стоит ниже, отдельной
               красной строкой: в столбик с цифрами оно бы утонуло. */}
-          {/* Углубление, а не карточка: столбик с цифрами стоит ВНУТРИ окна
-              подтверждения, и ступень вниз отделяет его вернее, чем край. */}
-          <div className="rounded-xl bg-background px-3 py-1.5">
+          {/* Ступень, а не край: столбик с цифрами стоит ВНУТРИ окна
+              подтверждения, и собственная заливка отделяет его вернее рамки.
+              ⚠️ Именно --muted, а не --background. Поверхность самого диалога
+              (bg-card/50 поверх затемнения) в тёмной теме складывается почти
+              ровно в --background, и блок на нём становится неразличим —
+              цифры читались бы как обычный абзац посреди окна. */}
+          <div className="rounded-xl bg-muted px-3 py-1.5">
             <MoneyRow
               label={t('pages.subscription.purchase.rowPrice')}
               value={formatKopeks(quote.priceKopeks)}
@@ -1265,13 +1269,13 @@ const Subscription: React.FC = () => {
           className={cn(
             'relative mb-4 rounded-xl bg-card p-3.5',
             // Спокойная мера идёт без края вовсе: от фона её отделяет заливка
-            // (main.css:148). Край остаётся только у тревоги и у истёкшей
-            // подписки — и там он волосяной, через hair-ring, а не рамкой: это
-            // сигнал, а не оформление.
+            // (см. «Ступень светлее» в main.css). Край остаётся только у тревоги
+            // и у истёкшей подписки — и там он волосяной: это сигнал, а не
+            // оформление. Сам край рисует boxShadow ниже.
             cardState === 'expired'
-              ? 'hair-ring [--stroke:color-mix(in_oklab,var(--destructive)_45%,transparent)] [--sn-card:var(--destructive)] [--sn-live:var(--destructive)]'
+              ? '[--sn-card:var(--destructive)] [--sn-live:var(--destructive)]'
               : cardState === 'warn'
-                ? 'hair-ring [--stroke:color-mix(in_oklab,var(--warning)_45%,transparent)] [--sn-card:var(--warning)] [--sn-live:var(--warning)]'
+                ? '[--sn-card:var(--warning)] [--sn-live:var(--warning)]'
                 : '[--sn-card:var(--sn-accent)] [--sn-live:var(--success)]'
           )}
           style={{
@@ -1282,7 +1286,16 @@ const Subscription: React.FC = () => {
             // шампани предупреждает main.css:59). Это допустимо: подсвет —
             // украшение, ни одного смысла на нём не висит.
             backgroundImage:
-              'radial-gradient(130% 90% at 6% -10%, color-mix(in oklab, var(--sn-card) 13%, transparent), transparent 60%)'
+              'radial-gradient(130% 90% at 6% -10%, color-mix(in oklab, var(--sn-card) 13%, transparent), transparent 60%)',
+            // Тревожный край — внутренней тенью на --sn-card.
+            // ⚠️ Переопределять здесь --stroke (как было сначала) нельзя: он
+            // НАСЛЕДУЕТСЯ, и внутрь карточки его подхватывают дорожка шкалы
+            // трафика и разделитель «дней | до даты». При тревоге они оба
+            // становились оранжевыми, хотя кончается время, а не трафик.
+            boxShadow:
+              cardState === 'ok'
+                ? undefined
+                : 'inset 0 0 0 var(--hairline) color-mix(in oklab, var(--sn-card) 45%, transparent)'
           }}
         >
           {/* Шапка: знак, имя, состояние, действия. Высота зафиксирована на 34 —

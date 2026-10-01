@@ -597,11 +597,11 @@ const Home: React.FC = () => {
                 // текст. Безлимит — основной случай владельца — остаётся на 52.
                 hasTrafficLimit ? 'h-14 pb-1.5' : 'h-13',
                 // Обычное состояние — просто карточка, без края: от фона её
-                // отделяет заливка (main.css:148). Истекающая подписка край
+                // отделяет заливка (см. «Ступень светлее» в main.css). Истекающая подписка край
                 // сохраняет, но волосяной: красная рамка здесь не украшение,
                 // а единственная тревога на экране.
                 showExpiryNotice
-                  ? 'hair-ring bg-destructive/12 [--stroke:color-mix(in_oklab,var(--destructive)_45%,transparent)] [--sn-live:var(--destructive)] [--sn-row:var(--destructive)]'
+                  ? 'bg-destructive/12 [--sn-live:var(--destructive)] [--sn-row:var(--destructive)]'
                   : 'bg-card hover:bg-accent [--sn-live:var(--success)] [--sn-row:var(--sn-accent)]'
               )}
               style={{
@@ -612,7 +612,14 @@ const Home: React.FC = () => {
                 // по шампани предупреждает main.css:67). Это допустимо: подсвет
                 // здесь украшение, ни одного смысла на нём не висит.
                 backgroundImage:
-                  'radial-gradient(130% 220% at 0% 50%, color-mix(in oklab, var(--sn-row) 12%, transparent), transparent 62%)'
+                  'radial-gradient(130% 220% at 0% 50%, color-mix(in oklab, var(--sn-row) 12%, transparent), transparent 62%)',
+                // Край только у тревоги, внутренней тенью на --sn-row.
+                // ⚠️ Не через переопределение --stroke: он наследуется внутрь
+                // строки, и любой потомок с bg-stroke позже молча покраснел бы
+                // вместе с ней. На «Подписке» этим уже обожглись.
+                boxShadow: showExpiryNotice
+                  ? 'inset 0 0 0 var(--hairline) color-mix(in oklab, var(--sn-row) 45%, transparent)'
+                  : undefined
               }}
             >
               {/* Вся строка ведёт в раздел «Подписка». Кликабельная зона — это

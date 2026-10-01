@@ -68,7 +68,7 @@ const Group: React.FC<{ title: string; children: React.ReactNode }> = ({ title, 
     <h2 className="mb-1.5 px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
       {title}
     </h2>
-    {/* Рамки нет — поверхность отделяет от фона заливка (main.css:148). Внутри
+    {/* Рамки нет — поверхность отделяет от фона заливка (см. «Ступень светлее» в main.css). Внутри
         волосяной разделитель, и только МЕЖДУ строками: условно скрытая строка
         не оставляет за собой линию. */}
     <div className="hair-y overflow-hidden rounded-xl bg-card">
