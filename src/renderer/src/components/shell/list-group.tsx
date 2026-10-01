@@ -20,11 +20,11 @@ export const Group: React.FC<{ title?: string; children: React.ReactNode }> = ({
         {title}
       </h2>
     )}
-    {/* divide-y вместо границы на каждой строке: разделитель появляется только
-        МЕЖДУ строками, и условно скрытая строка не оставляет за собой линию. */}
-    <div className="divide-y divide-stroke overflow-hidden rounded-xl border border-stroke bg-card/50 backdrop-blur-xl">
-      {children}
-    </div>
+    {/* Рамки у карточки нет: в варианте «Ступень светлее» поверхность отделяет
+        от фона собственная заливка, а не край (main.css:148). Внутри остаётся
+        только волосяной разделитель — и только МЕЖДУ строками, чтобы условно
+        скрытая строка не оставляла за собой линию. */}
+    <div className="hair-y overflow-hidden rounded-xl bg-card">{children}</div>
   </section>
 )
 

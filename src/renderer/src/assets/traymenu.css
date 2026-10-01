@@ -52,20 +52,23 @@
   --gradient-end-power-on: #1f9d57;
 }
 
+/* Тёмная тема — вариант «Ступень светлее», см. main.css:148 (блок .dark). Значения обязаны
+   совпадать с главным окном: иначе на одном экране окажутся два разных
+   SlavaNET. */
 .dark {
-  --background: #0a0f1a;
+  --background: #121824;
   --foreground: #f1f5f9;
-  --card: #0f172a;
+  --card: #1c2537;
   --card-foreground: #f1f5f9;
-  --popover: #0f172a;
+  --popover: #1c2537;
   --popover-foreground: #f1f5f9;
   --primary: #3b82f6;
   --primary-foreground: #ffffff;
-  --secondary: #1b2437;
+  --secondary: #222d40;
   --secondary-foreground: #f1f5f9;
-  --muted: #1b2437;
+  --muted: #222d40;
   --muted-foreground: #94a3b8;
-  --accent: #1e293b;
+  --accent: #27334a;
   --accent-foreground: #f1f5f9;
   --destructive: #ef4444;
   --destructive-foreground: #ffffff;
@@ -73,9 +76,9 @@
   --success-foreground: #06140b;
   --warning: #f59e0b;
   --warning-foreground: #1a1205;
-  --stroke: #223049;
-  --border: rgb(241 245 249 / 10%);
-  --input: rgb(241 245 249 / 16%);
+  --stroke: rgb(124 140 170 / 22%);
+  --border: rgb(124 140 170 / 14%);
+  --input: rgb(124 140 170 / 32%);
   --ring: #3b82f6;
   --stroke-power-on: #3ddc7f;
   --gradient-start-power-on: #4ade80;

@@ -401,7 +401,7 @@ const DeviceSheet: React.FC<DeviceSheetProps> = ({
   const atLimit = aliasLength(draft) >= ALIAS_MAX_LENGTH
 
   const warningBanner = (text: string): React.ReactNode => (
-    <div className="mb-4 flex gap-2 rounded-xl border border-stroke bg-card/50 px-3 py-2.5">
+    <div className="mb-4 flex gap-2 rounded-xl bg-card px-3 py-2.5">
       <CircleAlert className="mt-0.5 size-4 shrink-0 text-warning" aria-hidden />
       <p className="text-xs text-muted-foreground">{text}</p>
     </div>

@@ -16,6 +16,17 @@ import {
 
 type ProxyNode = ControllerProxiesDetail | ControllerGroupDetail
 
+// Пружина в конце списка. Chromium внутренние области прокрутки сам НЕ
+// отпружинивает — системная отдача есть только у страницы целиком, — поэтому
+// делаем её руками. Решение владельца 01.10.2026.
+/** Докуда список оттягивается за край, px. */
+const PULL_LIMIT = 120
+/** Доля колеса, уходящая в оттяжку. Меньше единицы: за краем ход тяжелее. */
+const PULL_RATIO = 0.32
+/** Пауза без событий колеса, после которой список отпускают назад, мс. */
+const PULL_RELEASE_MS = 90
+const PULL_SPRING = 'transform .45s cubic-bezier(.16,.84,.3,1.12)'
+
 // Задержка у провайдерских узлов замеряется по имени провайдера, иначе ядро не
 // находит узел и замер молча не происходит.
 function getProviderName(proxy: ProxyNode): string | undefined {
@@ -72,6 +83,86 @@ const ServerList: React.FC = () => {
 
   const [switching, setSwitching] = useState<string | null>(null)
   const [testing, setTesting] = useState(false)
+
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const listRef = useRef<HTMLUListElement>(null)
+  // Растворение нижнего края включаем, только когда прокручивать ЕСТЬ что:
+  // на списке из трёх узлов растворять нечего, а край бы всё равно поплыл.
+  const [overflowing, setOverflowing] = useState(false)
+
+  useEffect(() => {
+    const box = scrollRef.current
+    if (!box) return
+    const check = (): void => setOverflowing(box.scrollHeight > box.clientHeight + 1)
+    check()
+    // Высота меняется и от числа узлов, и от размера окна — следим за обоими
+    // концами: за самой областью и за списком внутри неё.
+    const observer = new ResizeObserver(check)
+    observer.observe(box)
+    if (listRef.current) observer.observe(listRef.current)
+    return (): void => observer.disconnect()
+  }, [nodes.length, hasMoreGroups])
+
+  // Пружина. Прокрутку как таковую не трогаем: двигаем трансформом сам список,
+  // поэтому выбор узла и замеры задержек работают как работали.
+  useEffect(() => {
+    const box = scrollRef.current
+    const list = listRef.current
+    if (!box || !list) return
+    // «Уменьшить движение» в системных настройках — пружины нет совсем.
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+
+    let offset = 0
+    let release: ReturnType<typeof setTimeout> | null = null
+
+    const settle = (): void => {
+      offset = 0
+      list.style.transition = PULL_SPRING
+      list.style.transform = ''
+      list.style.marginBottom = ''
+    }
+
+    const onWheel = (e: WheelEvent): void => {
+      const atTop = box.scrollTop <= 0
+      const atBottom = box.scrollTop + box.clientHeight >= box.scrollHeight - 1
+      const pulling = (atTop && e.deltaY < 0) || (atBottom && e.deltaY > 0)
+      if (!pulling && offset === 0) return
+
+      // Затухание: чем дальше оттянут список, тем меньше ход — так ведёт себя
+      // системная отдача, и без этого оттяжка улетает в предел с одного рывка.
+      const ease = 1 - Math.min(Math.abs(offset) / PULL_LIMIT, 0.86)
+      const next = offset - e.deltaY * PULL_RATIO * ease
+
+      // Колесо поехало обратно и перевалило через ноль: отпускаем список и
+      // НЕ перехватываем событие — дальше это уже обычная прокрутка.
+      if (!pulling && (next === 0 || Math.sign(next) !== Math.sign(offset))) {
+        if (release) clearTimeout(release)
+        settle()
+        return
+      }
+
+      e.preventDefault()
+      offset = Math.max(-PULL_LIMIT, Math.min(PULL_LIMIT, next))
+      list.style.transition = 'none'
+      list.style.transform = `translateY(${offset.toFixed(1)}px)`
+      // ⚠️ Отрицательный отступ гасит ровно то, что добавил трансформ: иначе
+      // сдвинутый список меняет ДЛИНУ прокрутки, и браузер подрезает scrollTop
+      // прямо под пальцем. Знак общий для обоих концов — сдвиг и отступ всегда
+      // противоположны.
+      list.style.marginBottom = `${(-offset).toFixed(1)}px`
+
+      if (release) clearTimeout(release)
+      release = setTimeout(settle, PULL_RELEASE_MS)
+    }
+
+    // passive: false обязателен — без него preventDefault молча не сработает.
+    box.addEventListener('wheel', onWheel, { passive: false })
+    return (): void => {
+      box.removeEventListener('wheel', onWheel)
+      if (release) clearTimeout(release)
+      settle()
+    }
+  }, [])
 
   // Компонент живёт на экране, с которого легко уйти в «Ещё» посреди замера.
   // Без этой отметки завершение замера дёрнуло бы setState у размонтированного.
@@ -167,7 +258,7 @@ const ServerList: React.FC = () => {
         'dark:[--sn-selected:color-mix(in_oklab,#3b82f6_20%,transparent)]'
       )}
     >
-      <div className="flex shrink-0 items-center justify-between gap-2 px-3 pb-1">
+      <div className="flex shrink-0 items-center justify-between gap-2 px-2.5 pb-1.5">
         <div className="flex min-w-0 items-baseline gap-1.5">
           <span className="text-[13px] font-semibold text-foreground">{t('connect.servers')}</span>
           {nodes.length > 0 && (
@@ -187,13 +278,40 @@ const ServerList: React.FC = () => {
         </button>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-2">
+      {/* Боковых отступов у прокрутки нет намеренно: карточка списка встаёт
+          ровно по краям живой строки над ней, обе на отступе страницы (px-5).
+          Разъедься они на пару пикселей — экран сразу читается как собранный
+          из двух разных макетов.
+
+          Снизу область уходит под стекло капсулы, а запас под неё лежит ЗДЕСЬ, в
+          отступе прокрутки, а не у страницы: иначе список обрывался бы по линейке
+          перед панелью. Благодаря этому запасу долистанный до конца список всё
+          равно кончается на чистом месте, а не под стеклом.
+
+          ⚠️ Кончается область ровно на НИЖНЕЙ кромке капсулы, а не у края окна.
+          Между кромкой и краем 20px, и строки там уже полностью растворены —
+          но нажатия ловили бы по-прежнему, и клик у нижнего края окна молча
+          переключал бы сервер. */}
+      <div
+        ref={scrollRef}
+        className={cn(
+          'sn-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain',
+          overflowing && 'sn-fade-bottom'
+        )}
+        style={{
+          marginBottom: 'var(--nav-gap)',
+          paddingBottom: 'calc(var(--nav-space) - var(--nav-gap))'
+        }}
+      >
         {nodes.length === 0 ? (
           // Пустота без объяснения читается как поломка: строка говорит, что
           // список пуст осознанно.
-          <p className="px-1 py-3 text-[13px] text-muted-foreground">{t('connect.noServers')}</p>
+          <p className="px-3 py-3 text-[13px] text-muted-foreground">{t('connect.noServers')}</p>
         ) : (
-          <ul className="flex flex-col">
+          // Список — одна карточка со сплошной заливкой и волосяными
+          // разделителями, как системный список macOS. Рамки нет: поверхность
+          // отделяет от фона собственный тон (main.css:148).
+          <ul ref={listRef} className="hair-y flex flex-col overflow-hidden rounded-xl bg-card">
             {nodes.map((proxy) => {
               const selected = firstGroup?.now === proxy.name
               const delay = lastDelay(proxy)
@@ -204,15 +322,14 @@ const ServerList: React.FC = () => {
                     onClick={() => onSelect(proxy.name)}
                     aria-current={selected ? 'true' : undefined}
                     className={cn(
-                      'flex h-11 w-full cursor-pointer items-center gap-2 rounded-[10px] px-2 text-left outline-none transition-colors',
-                      'focus-visible:ring-2 focus-visible:ring-[color:var(--sn-accent)]',
-                      selected ? 'text-foreground' : 'hover:bg-accent/50'
+                      'flex h-11 w-full cursor-pointer items-center gap-2.5 px-2.5 text-left outline-none transition-colors',
+                      // ⚠️ Кольцо фокуса внутрь: карточка обрезает содержимое
+                      // (overflow-hidden), и у первой и последней строки
+                      // обычное кольцо срезалось бы её краем.
+                      'focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[color:var(--sn-accent)]',
+                      selected ? 'text-foreground' : 'hover:bg-accent'
                     )}
-                    style={
-                      selected
-                        ? { background: 'var(--sn-selected)' }
-                        : undefined
-                    }
+                    style={selected ? { background: 'var(--sn-selected)' } : undefined}
                   >
                     {/* Галочки нет намеренно: выбранный узел обозначает сама
                         подсветка строки. Слот под значок тоже убран — иначе
@@ -242,7 +359,7 @@ const ServerList: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => navigate('/proxies')}
-                  className="flex h-11 w-full cursor-pointer items-center gap-2 rounded-[10px] px-2 text-left text-muted-foreground outline-none transition-colors hover:bg-accent/50 hover:text-foreground focus-visible:ring-2 focus-visible:ring-[color:var(--sn-accent)]"
+                  className="flex h-11 w-full cursor-pointer items-center gap-2.5 px-2.5 text-left text-muted-foreground outline-none transition-colors hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[color:var(--sn-accent)]"
                 >
                   <span className="w-4 shrink-0" />
                   <span className="min-w-0 flex-1 truncate text-[13px]">

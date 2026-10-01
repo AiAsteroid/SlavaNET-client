@@ -986,7 +986,9 @@ const Subscription: React.FC = () => {
               объясняющая сумму: за сколько дней заплачено. Четвёртое
               обязательное — «возврата не будет» — стоит ниже, отдельной
               красной строкой: в столбик с цифрами оно бы утонуло. */}
-          <div className="rounded-xl border border-stroke bg-background/40 px-3 py-1.5">
+          {/* Углубление, а не карточка: столбик с цифрами стоит ВНУТРИ окна
+              подтверждения, и ступень вниз отделяет его вернее, чем край. */}
+          <div className="rounded-xl bg-background px-3 py-1.5">
             <MoneyRow
               label={t('pages.subscription.purchase.rowPrice')}
               value={formatKopeks(quote.priceKopeks)}
@@ -1261,12 +1263,16 @@ const Subscription: React.FC = () => {
             вся смысловая нагрузка честно перетекает вправо, во время. */}
         <section
           className={cn(
-            'relative mb-4 rounded-xl border bg-card/50 p-3.5 backdrop-blur-xl',
+            'relative mb-4 rounded-xl bg-card p-3.5',
+            // Спокойная мера идёт без края вовсе: от фона её отделяет заливка
+            // (main.css:148). Край остаётся только у тревоги и у истёкшей
+            // подписки — и там он волосяной, через hair-ring, а не рамкой: это
+            // сигнал, а не оформление.
             cardState === 'expired'
-              ? 'border-destructive/40 [--sn-card:var(--destructive)] [--sn-live:var(--destructive)]'
+              ? 'hair-ring [--stroke:color-mix(in_oklab,var(--destructive)_45%,transparent)] [--sn-card:var(--destructive)] [--sn-live:var(--destructive)]'
               : cardState === 'warn'
-                ? 'border-warning/40 [--sn-card:var(--warning)] [--sn-live:var(--warning)]'
-                : 'border-stroke [--sn-card:var(--sn-accent)] [--sn-live:var(--success)]'
+                ? 'hair-ring [--stroke:color-mix(in_oklab,var(--warning)_45%,transparent)] [--sn-card:var(--warning)] [--sn-live:var(--warning)]'
+                : '[--sn-card:var(--sn-accent)] [--sn-live:var(--success)]'
           )}
           style={{
             // Подсвет сверху слева из концепта. Держим на --sn-card, чтобы

@@ -36,19 +36,22 @@
   --border: #e9d6b2;
 }
 
+/* Тёмная тема — вариант «Ступень светлее», см. main.css:148 (блок .dark). Значения обязаны
+   совпадать с главным окном: иначе на одном экране окажутся два разных
+   SlavaNET. */
 .dark {
-  --background: #0a0f1a;
+  --background: #121824;
   --foreground: #f1f5f9;
-  --card: #0f172a;
+  --card: #1c2537;
   --card-foreground: #f1f5f9;
   --primary: #3b82f6;
   --primary-foreground: #ffffff;
-  --muted: #1b2437;
+  --muted: #222d40;
   --muted-foreground: #94a3b8;
-  --stroke: #223049;
-  --accent: #1e293b;
+  --stroke: rgb(124 140 170 / 22%);
+  --accent: #27334a;
   --gradient-end-power-on: #16a34a;
-  --border: rgb(241 245 249 / 10%);
+  --border: rgb(124 140 170 / 14%);
 }
 
 @theme inline {

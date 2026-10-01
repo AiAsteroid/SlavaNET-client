@@ -68,9 +68,10 @@ const Group: React.FC<{ title: string; children: React.ReactNode }> = ({ title, 
     <h2 className="mb-1.5 px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
       {title}
     </h2>
-    {/* divide-y вместо границы на каждой строке: разделитель появляется только
-        МЕЖДУ строками, и условно скрытая строка не оставляет за собой линию. */}
-    <div className="divide-y divide-stroke overflow-hidden rounded-xl border border-stroke bg-card/50 backdrop-blur-xl">
+    {/* Рамки нет — поверхность отделяет от фона заливка (main.css:148). Внутри
+        волосяной разделитель, и только МЕЖДУ строками: условно скрытая строка
+        не оставляет за собой линию. */}
+    <div className="hair-y overflow-hidden rounded-xl bg-card">
       {children}
     </div>
   </section>

@@ -421,11 +421,11 @@ const Home: React.FC = () => {
       ) : (
         // min-h-0 на колонке обязателен: без него список серверов растянет
         // колонку по своему содержимому и прокручиваться начнёт весь экран.
-        // Резерв снизу — под плавающую капсулу; ServerList своего не добавляет.
-        <div
-          className="flex min-h-0 flex-1 flex-col gap-3 px-5"
-          style={{ paddingBottom: 'var(--nav-space)' }}
-        >
+        //
+        // ⚠️ Резерва снизу под капсулу здесь НЕТ: колонка доходит до низа окна,
+        // чтобы список уезжал под стекло и растворялся. Запас под панель держит
+        // сам ServerList, в отступе своей области прокрутки.
+        <div className="flex min-h-0 flex-1 flex-col gap-3 px-5">
           {/* --- Кнопка включения ------------------------------------------ */}
           <div className="flex shrink-0 flex-col items-center pt-1">
             {/* Высота строки статуса зафиксирована всегда: иначе появление
@@ -449,13 +449,29 @@ const Home: React.FC = () => {
               aria-label={isSelected ? t('pages.home.connected') : t('pages.home.disconnected')}
               className="relative mt-3 size-32 cursor-pointer rounded-full outline-none transition-transform active:scale-95 focus-visible:ring-2 focus-visible:ring-[color:var(--sn-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent disabled:pointer-events-none disabled:opacity-60"
             >
+              {/* Ореол. Лежит ПОД кнопкой и шире её: в концепте именно он даёт
+                  включённому состоянию вес, которого не добирает одна заливка.
+                  Только во включённом — в выключенном светиться нечему. */}
+              {isSelected && (
+                <span
+                  aria-hidden
+                  className="pointer-events-none absolute -inset-8 rounded-full"
+                  style={{
+                    background:
+                      'radial-gradient(closest-side, color-mix(in oklab, var(--sn-on) 16%, transparent), transparent 72%)'
+                  }}
+                />
+              )}
+
               {/* Выключено — нейтральная заливка с обводкой: красный круг на
                   macOS читается как «опасно, не нажимай», хотя нажать надо
-                  именно его. Цветом отмечено только включённое состояние. */}
+                  именно его. Цветом отмечено только включённое состояние.
+                  Обводка в волос, а не 2px: толстый край спорил с заливкой и
+                  делал кнопку похожей на пустую рамку. */}
               <div
                 className={cn(
-                  'flex size-32 items-center justify-center rounded-full border-2 backdrop-blur-xl transition-colors duration-300',
-                  isSelected ? '' : 'border-stroke bg-card/60 text-foreground'
+                  'flex size-32 items-center justify-center rounded-full transition-colors duration-300',
+                  isSelected ? '' : 'hair-ring bg-card text-foreground'
                 )}
                 style={
                   isSelected
@@ -464,10 +480,13 @@ const Home: React.FC = () => {
                         // #22c55e даёт 2.3:1 (об этом же предупреждение в
                         // main.css у --success-foreground), а полупрозрачная
                         // зелень по «шампани» выцветает до неразличимой.
-                        borderColor: 'var(--sn-on)',
                         background:
-                          'radial-gradient(at 30% 45%, var(--sn-on), color-mix(in oklab, var(--sn-on) 76%, #06140b))',
-                        boxShadow: '0 8px 30px color-mix(in oklab, var(--sn-on) 32%, transparent)',
+                          'radial-gradient(at 30% 42%, var(--sn-on), color-mix(in oklab, var(--sn-on) 72%, #06140b) 78%)',
+                        // Три тени разом: мягкий сброс вниз, светлая кромка
+                        // сверху и затемнение снизу внутри — круг получает
+                        // объём без единой нарисованной линии.
+                        boxShadow:
+                          '0 12px 48px color-mix(in oklab, var(--sn-on) 44%, transparent), inset 0 1px 0 rgb(255 255 255 / 30%), inset 0 -10px 26px rgb(6 20 11 / 22%)',
                         color: '#06140b'
                       }
                     : undefined
@@ -572,15 +591,18 @@ const Home: React.FC = () => {
               role={showExpiryNotice ? 'status' : undefined}
               title={rowTooltip}
               className={cn(
-                'relative flex shrink-0 items-center gap-2.5 rounded-xl border px-2',
-                'backdrop-blur-xl transition-colors',
+                'relative flex shrink-0 items-center gap-2.5 rounded-xl px-2 transition-colors',
                 // 52 — базовая высота. При лимите строка вырастает до 56 и
                 // отдаёт нижние 6px полосе трафика: иначе полоса села бы на
                 // текст. Безлимит — основной случай владельца — остаётся на 52.
                 hasTrafficLimit ? 'h-14 pb-1.5' : 'h-13',
+                // Обычное состояние — просто карточка, без края: от фона её
+                // отделяет заливка (main.css:148). Истекающая подписка край
+                // сохраняет, но волосяной: красная рамка здесь не украшение,
+                // а единственная тревога на экране.
                 showExpiryNotice
-                  ? 'border-destructive/40 bg-destructive/10 hover:border-destructive/60 [--sn-live:var(--destructive)] [--sn-row:var(--destructive)]'
-                  : 'border-stroke bg-card/60 hover:border-input [--sn-live:var(--success)] [--sn-row:var(--sn-accent)]'
+                  ? 'hair-ring bg-destructive/12 [--stroke:color-mix(in_oklab,var(--destructive)_45%,transparent)] [--sn-live:var(--destructive)] [--sn-row:var(--destructive)]'
+                  : 'bg-card hover:bg-accent [--sn-live:var(--success)] [--sn-row:var(--sn-accent)]'
               )}
               style={{
                 // Слабый подсвет слева — он отделяет строку от карточек списка,
@@ -695,7 +717,10 @@ const Home: React.FC = () => {
               <div
                 className={cn(
                   'flex h-8 shrink-0 items-center rounded-md px-[9px]',
-                  showExpiryNotice ? 'bg-destructive/15' : 'bg-foreground/6'
+                  // Плитка — третья ступень: фон -> карточка -> плитка. Раньше
+                  // она была долей от текста (bg-foreground/6) и на светлой
+                  // теме уходила в грязно-серый.
+                  showExpiryNotice ? 'bg-destructive/15' : 'bg-secondary'
                 )}
               >
                 {expireTimestamp > 0 ? (
