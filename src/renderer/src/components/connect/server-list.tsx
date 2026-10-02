@@ -19,14 +19,38 @@ type ProxyNode = ControllerProxiesDetail | ControllerGroupDetail
 // Пружина в конце списка. Chromium внутренние области прокрутки сам НЕ
 // отпружинивает — системная отдача есть только у страницы целиком, — поэтому
 // делаем её руками. Решение владельца 01.10.2026.
+//
+// ⚠️ Это временно и привязано к версии движка. Chromium умеет упругую отдачу и
+// для ВНУТРЕННИХ областей прокрутки: флаг kOverscrollEffectOnNonRootScrollers
+// в cc/base/features.cc уже ENABLED_BY_DEFAULT, Chrome Platform Status заявляет
+// отгрузку в 145-м. У нас Electron 37.10.3, а это Chromium 138 — отдачи ещё
+// нет. Как переедем на сборку с Chromium 145 и новее, всю эту пружину надо
+// СНЯТЬ и отдать движку: своя рядом с системной будет спорить.
+//
+// Параметры названы как у Apple (WWDC 2018, «Designing Fluid Interfaces»):
+// пружина настраивается ответом и затуханием, а не длительностью, —
+// «the first is damping... the second property is response».
 /** Докуда список оттягивается за край, px. */
 const PULL_LIMIT = 120
 /** Доля колеса, уходящая в оттяжку. Меньше единицы: за краем ход тяжелее. */
 const PULL_RATIO = 0.32
-/** Жёсткость пружины, 1/с². Выше — быстрее возврат и короче оттяжка. */
-const PULL_STIFFNESS = 150
-/** Затухание. Подобрано на ζ ≈ 0.69: возврат без дрожи, с перелётом около 5 %. */
-const PULL_DAMPING = 17
+/** Ответ пружины, с: за сколько она в основном доходит до цели. */
+const PULL_RESPONSE = 0.45
+/**
+ * Затухание, доля от критического. Ровно 1 — это «100 % damping» у Apple,
+ * то есть БЕЗ перелёта.
+ *
+ * ⚠️ Было 0.69, и список перелетал край на 3px. Apple прямо не рекомендует:
+ * «we recommend starting with 100% damping, or no overshoot when you're tuning
+ * elastic behaviors», а перелёт оправдан, только если у самого жеста есть
+ * инерция В НАПРАВЛЕНИИ движения. Здесь наоборот: возврат идёт ПРОТИВ жеста,
+ * и перелёт уводил бы список за точку покоя — такого у системной отдачи нет.
+ */
+const PULL_DAMPING_RATIO = 1
+/** Угловая частота и коэффициенты интегратора — из ответа и затухания. */
+const PULL_OMEGA = (2 * Math.PI) / PULL_RESPONSE
+const PULL_STIFFNESS = PULL_OMEGA * PULL_OMEGA
+const PULL_DAMPING = 2 * PULL_DAMPING_RATIO * PULL_OMEGA
 
 // Задержка у провайдерских узлов замеряется по имени провайдера, иначе ядро не
 // находит узел и замер молча не происходит.
@@ -178,6 +202,14 @@ const ServerList: React.FC = () => {
     }
 
     const onWheel = (e: WheelEvent): void => {
+      // ⚠️ Список целиком помещается — отдачи нет вовсе. Так устроена
+      // NSScrollView.Elasticity.automatic у Apple: по вертикали выход за
+      // границы разрешён, только если «the content height is greater than the
+      // view height» (или виден скроллер, или включён alwaysBounceVertical).
+      // Без этой проверки оба края истинны одновременно, и короткий список из
+      // трёх серверов начинал ездить под колесом, хотя прокручивать нечего.
+      if (box.scrollHeight <= box.clientHeight + 1) return
+
       const atTop = box.scrollTop <= 0
       const atBottom = box.scrollTop + box.clientHeight >= box.scrollHeight - 1
       const pulling = (atTop && e.deltaY < 0) || (atBottom && e.deltaY > 0)
