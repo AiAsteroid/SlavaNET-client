@@ -1066,7 +1066,7 @@ const RuleListItemBase: React.FC<RuleListItemProps> = ({
         isDeleted && 'bg-destructive/10 opacity-70 border-destructive/20 cursor-not-allowed',
         !isDeleted &&
           isCustom &&
-          'bg-green-500/8 border-green-500/20 hover:border-green-500/40 cursor-pointer',
+          'bg-success/10 border-success/25 hover:border-success/45 cursor-pointer',
         !isDeleted &&
           !isCustom &&
           'bg-muted/50 border-transparent hover:border-border cursor-pointer',
@@ -1094,7 +1094,7 @@ const RuleListItemBase: React.FC<RuleListItemProps> = ({
               variant="ghost"
               className={
                 originalIndex !== -1 && isDeleted
-                  ? 'text-green-500 hover:text-green-600'
+                  ? 'text-success hover:text-success/80'
                   : 'text-destructive hover:text-destructive/80'
               }
               onClick={(e) => {
@@ -2046,7 +2046,7 @@ const EditRulesModal: React.FC<Props> = (props) => {
                   {customRulesCount > 0 && (
                     <Badge
                       variant="outline"
-                      className="text-[10px] text-emerald-700 dark:text-emerald-400 border-emerald-600/40 dark:border-emerald-500/40 bg-emerald-50 dark:bg-emerald-950/50"
+                      className="text-[10px] border-success/40 bg-success/10 text-success"
                     >
                       +{customRulesCount}
                     </Badge>
