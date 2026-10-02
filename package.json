@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "SlavaNET",
   "main": "./out/main/index.js",
-  "author": "xishang0128, co-author: coolcoala",
+  "author": "SlavaNET (fork), upstream: xishang0128, coolcoala",
   "homepage": "https://github.com/AiAsteroid/SlavaNET-client",
   "scripts": {
     "format": "prettier --write .",

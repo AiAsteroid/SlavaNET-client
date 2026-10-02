@@ -63,7 +63,8 @@ linux:
     - deb
     - rpm
     - pacman
-  maintainer: coolcoala
+  # Сопровождающий пакета — мы: именно нам приходят жалобы на установку.
+  maintainer: SlavaNET
   category: Utility
   artifactName: ${productName}_${arch}.${ext}
 deb:

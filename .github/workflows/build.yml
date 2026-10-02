@@ -168,14 +168,14 @@ jobs:
           merge-multiple: true
 
       - name: Delete current release assets
-        uses: 8Mi-Tech/delete-release-assets-action@main
+        uses: 8Mi-Tech/delete-release-assets-action@71a740cf4364bc69448e0294b8abadffadfb3288 # main на 02.10.2026
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           tag: pre-release
           deleteOnlyFromDrafts: false
 
       - name: Tag Repo
-        uses: richardsimko/update-tag@v1
+        uses: richardsimko/update-tag@aab2434e9a5040687874aa39d1c6377ec0cb0d94 # v1 на 02.10.2026
         with:
           tag_name: pre-release
         env:
@@ -183,7 +183,7 @@ jobs:
 
       - name: Publish Prerelease
         if: success()
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2 на 02.10.2026
         with:
           tag_name: pre-release
           body_path: bin/changelog.md
@@ -231,7 +231,7 @@ jobs:
           merge-multiple: true
 
       - name: Delete Current
-        uses: 8Mi-Tech/delete-release-assets-action@main
+        uses: 8Mi-Tech/delete-release-assets-action@71a740cf4364bc69448e0294b8abadffadfb3288 # main на 02.10.2026
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           tag: ${{ github.event.inputs.version != '' && github.event.inputs.version || github.ref }}
@@ -239,7 +239,7 @@ jobs:
 
       - name: Publish Release
         if: success()
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2 на 02.10.2026
         with:
           tag_name: ${{ github.event.inputs.version != '' && github.event.inputs.version || github.ref }}
           body_path: changelog.md
