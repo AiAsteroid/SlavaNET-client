@@ -6,10 +6,26 @@ import { platform } from '@renderer/utils/init'
 const isMac = platform === 'darwin'
 
 interface Props {
-  /** Заголовок по центру полосы. Без него полоса остаётся пустой — только перетаскивание. */
-  title?: string
+  /**
+   * Заголовок по центру полосы. Без него полоса остаётся пустой — только
+   * перетаскивание.
+   *
+   * ⚠️ Не string, а узел: экран соединений в режиме процесса кладёт сюда значок
+   * приложения рядом с именем (connections.tsx:500). Сузишь тип до строки —
+   * значок молча исчезнет.
+   */
+  title?: React.ReactNode
   /** Кнопка «назад» слева. Нет обработчика — нет и кнопки. */
   onBack?: () => void
+  /**
+   * Действия справа: «Сохранить», «Обновить все», фильтры, переключатели вида.
+   * Их держат 9 экранов из 12, и без этого слота перевод на общую полосу
+   * потерял бы их молча.
+   *
+   * ⚠️ Каждая кнопка внутри обязана быть app-nodrag — полоса целиком
+   * перетаскивает окно, и без этого нажатия до кнопок не доходят.
+   */
+  actions?: React.ReactNode
 }
 
 // Верхняя полоса окна: место, за которое окно тащат, и заголовок экрана.
@@ -30,7 +46,7 @@ interface Props {
 // ⚠️ Перетаскивает ВСЯ площадь полосы (app-drag), поэтому каждая кнопка внутри
 // обязана быть app-nodrag — иначе клик по ней система заберёт себе как начало
 // перетаскивания окна, и кнопка перестанет нажиматься.
-const TitleStrip: React.FC<Props> = ({ title, onBack }) => {
+const TitleStrip: React.FC<Props> = ({ title, onBack, actions }) => {
   const { t } = useTranslation()
 
   return (
@@ -55,11 +71,21 @@ const TitleStrip: React.FC<Props> = ({ title, onBack }) => {
       )}
       {title && (
         // Заголовок центрируется по всей полосе, а не по остатку после кнопки:
-        // иначе он дёргался бы влево-вправо при появлении «назад».
+        // иначе он дёргался бы влево-вправо при появлении «назад» и при смене
+        // набора действий справа.
         // pointer-events-none — чтобы текст не отбирал у полосы перетаскивание.
-        <span className="pointer-events-none absolute left-1/2 max-w-[60%] -translate-x-1/2 truncate text-[13px] font-semibold text-foreground">
+        //
+        // ⚠️ Ширина ограничена 52 %, а не 60: на минимальном окне 420px правая
+        // группа из четырёх кнопок занимает около 124px, и более широкий
+        // заголовок заезжал бы под неё. Длиннее — обрежется многоточием.
+        <span className="pointer-events-none absolute left-1/2 max-w-[52%] -translate-x-1/2 truncate text-[13px] font-semibold text-foreground">
           {title}
         </span>
+      )}
+      {actions && (
+        <div className="app-nodrag relative z-10 ml-auto flex shrink-0 items-center gap-1">
+          {actions}
+        </div>
       )}
     </div>
   )

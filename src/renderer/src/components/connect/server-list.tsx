@@ -7,6 +7,7 @@ import ProxyName from '@renderer/components/base/proxy-name'
 import { Spinner } from '@renderer/components/ui/spinner'
 import { cn } from '@renderer/lib/utils'
 import { useGroups } from '@renderer/hooks/use-groups'
+import { useOverflowing } from '@renderer/hooks/use-overflowing'
 import { useAppConfig } from '@renderer/hooks/use-app-config'
 import {
   mihomoChangeProxy,
@@ -113,20 +114,8 @@ const ServerList: React.FC = () => {
   const listRef = useRef<HTMLUListElement>(null)
   // Растворение нижнего края включаем, только когда прокручивать ЕСТЬ что:
   // на списке из трёх узлов растворять нечего, а край бы всё равно поплыл.
-  const [overflowing, setOverflowing] = useState(false)
-
-  useEffect(() => {
-    const box = scrollRef.current
-    if (!box) return
-    const check = (): void => setOverflowing(box.scrollHeight > box.clientHeight + 1)
-    check()
-    // Высота меняется и от числа узлов, и от размера окна — следим за обоими
-    // концами: за самой областью и за списком внутри неё.
-    const observer = new ResizeObserver(check)
-    observer.observe(box)
-    if (listRef.current) observer.observe(listRef.current)
-    return (): void => observer.disconnect()
-  }, [nodes.length, hasMoreGroups])
+  // Условие общее с оболочкой остальных экранов — hooks/use-overflowing.
+  const overflowing = useOverflowing(scrollRef, [nodes.length, hasMoreGroups])
 
   // Пружина. Прокрутку как таковую не трогаем: двигаем трансформом сам список,
   // поэтому выбор узла и замеры задержек работают как работали.
