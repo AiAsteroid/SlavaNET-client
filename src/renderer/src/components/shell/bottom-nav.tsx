@@ -37,7 +37,6 @@ const BLUR = 'blur(26px) saturate(180%)'
 const MORE_PATHS = new Set([
   '/more',
   '/settings',
-  '/profiles',
   '/proxies',
   '/connections',
   '/rules',
@@ -53,7 +52,10 @@ const MORE_PATHS = new Set([
 // Подписка вынесена в собственный раздел по решению владельца: на главном
 // экране про тариф не должно быть ничего, там кнопка и серверы. В кабинете
 // подписка — тоже отдельный раздел, и приложение повторяет его состав.
-const SUBSCRIPTION_PATHS = new Set(['/subscription'])
+// ⚠️ /profiles сюда, а не в «Ещё»: экран открывают только из «Подписки»
+// (subscription.tsx), и подсветка «Ещё» на нём была прямой ложью о том,
+// где человек находится.
+const SUBSCRIPTION_PATHS = new Set(['/subscription', '/profiles'])
 
 type SectionId = 'connect' | 'subscription' | 'more'
 

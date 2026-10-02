@@ -20,6 +20,12 @@ import Subscription from '@renderer/pages/subscription'
 const routes = [
   // Разделы настроек — отдельные маршруты, а не состояние внутри экрана.
   // Иначе возврат «назад» выбрасывал бы из раздела в корень приложения.
+  // Второй уровень «Ещё». Маршрутом, а не состоянием: иначе возврат с
+  // диагностического экрана выбрасывает мимо списка, из которого в него вошли.
+  {
+    path: '/more/diagnostics',
+    element: <More />
+  },
   {
     path: '/settings/appearance',
     element: <SettingsAppearance />

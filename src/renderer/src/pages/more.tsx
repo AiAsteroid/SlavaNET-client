@@ -1,5 +1,5 @@
-import React, { useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import React from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import useSWR from 'swr'
 import {
@@ -9,7 +9,7 @@ import {
   Route,
   SlidersHorizontal
 } from 'lucide-react'
-import TitleStrip from '@renderer/components/shell/title-strip'
+import BasePage from '@renderer/components/base/base-page'
 // Группа и строка — общие на всё приложение. Своя копия здесь была до
 // 02.10.2026, и любое расширение строки пришлось бы вносить дважды.
 import { Group, Row } from '@renderer/components/shell/list-group'
@@ -61,6 +61,9 @@ const ROUTING_MODES: { value: OutboundMode; labelKey: string }[] = [
 
 type Level = 'root' | 'diagnostics'
 
+/** Адрес второго уровня. Заведён маршрутом, чтобы «назад» работал. */
+const DIAGNOSTICS_PATH = '/more/diagnostics'
+
 // Раздел «Ещё» — единственная дверь ко всему, что ушло с главного экрана.
 //
 // Диагностика сделана состоянием ВНУТРИ страницы, а не отдельным маршрутом:
@@ -71,6 +74,7 @@ type Level = 'root' | 'diagnostics'
 const More: React.FC = () => {
   const { t } = useTranslation()
   const navigate = useNavigate()
+  const location = useLocation()
   const { appConfig } = useAppConfig()
   const { autoCloseConnection = true } = appConfig || {}
   const { controledMihomoConfig, patchControledMihomoConfig } = useControledMihomoConfig()
@@ -79,15 +83,12 @@ const More: React.FC = () => {
   const { mutate: mutateGroups } = useGroups()
   const { data: version } = useSWR('getVersion', getVersion)
 
-  const [level, setLevel] = useState<Level>('root')
-  const scrollRef = useRef<HTMLDivElement>(null)
-
-  // Прокрутка принадлежит внешнему контейнеру, а содержимое в нём подменяется.
-  // Без сброса вход в диагностику из прокрутанного низа списка открывал бы её
-  // уже прокрученной — на экране оказалась бы середина короткого списка.
-  useEffect(() => {
-    scrollRef.current?.scrollTo({ top: 0 })
-  }, [level])
+  // ⚠️ Уровень берётся из АДРЕСА, а не из состояния компонента. Пока он жил в
+  // useState, «Диагностика» не существовала для истории: возврат с любого из
+  // девяти диагностических экранов выбрасывал в корень «Ещё», мимо списка, из
+  // которого человек туда и зашёл. Прокрутку наверх при смене уровня теперь
+  // тоже делает оболочка — ей для этого достаточно смены маршрута.
+  const level: Level = location.pathname.startsWith(DIAGNOSTICS_PATH) ? 'diagnostics' : 'root'
 
   const currentProfile =
     profileConfig?.items?.find((item) => item.id === profileConfig?.current) ?? null
@@ -116,18 +117,8 @@ const More: React.FC = () => {
   const modeLabel = ROUTING_MODES.find((m) => m.value === mode)?.labelKey
 
   return (
-    <div className="flex h-full min-h-0 w-full flex-col">
-      <TitleStrip
-        title={level === 'root' ? t('pages.more.title') : t('pages.more.diagnostics.title')}
-        onBack={level === 'root' ? undefined : (): void => setLevel('root')}
-      />
-      {/* Отступ снизу — под плавающую капсулу: она лежит поверх содержимого
-          (position: fixed), и без резерва последние строки списка оказались бы
-          под стеклом, а доскроллить до них было бы нельзя. */}
-      <div
-        ref={scrollRef}
-        className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pt-1 pb-[var(--nav-space)]"
-      >
+    <BasePage title={level === 'root' ? t('pages.more.title') : t('pages.more.diagnostics.title')}>
+      <div className="px-4 pt-1">
         {/* key переигрывает появление при смене уровня: направление сдвига
             показывает, вглубь мы ушли или вернулись. */}
         <div
@@ -191,7 +182,7 @@ const More: React.FC = () => {
                   icon={Code}
                   label={t('pages.more.support.diagnostics')}
                   trailing="chevron"
-                  onClick={() => setLevel('diagnostics')}
+                  onClick={() => navigate(DIAGNOSTICS_PATH)}
                 />
               </Group>
 
@@ -222,7 +213,7 @@ const More: React.FC = () => {
           )}
         </div>
       </div>
-    </div>
+    </BasePage>
   )
 }
 

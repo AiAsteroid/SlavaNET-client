@@ -3,7 +3,7 @@ import WindowControls from '@renderer/components/window-controls'
 import TitleStrip from '@renderer/components/shell/title-strip'
 import { useOverflowing } from '@renderer/hooks/use-overflowing'
 import { cn } from '@renderer/lib/utils'
-import React, { forwardRef, useImperativeHandle, useRef } from 'react'
+import React, { forwardRef, useEffect, useImperativeHandle, useRef } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 
 const isMac = platform === 'darwin'
@@ -54,6 +54,14 @@ const BasePage = forwardRef<HTMLDivElement, Props>((props, ref) => {
   // растворять нечего, а край бы всё равно поплыл.
   const scrollRef = useRef<HTMLDivElement>(null)
   const overflowing = useOverflowing(scrollRef, [props.children])
+
+  // Новый экран открывается сверху. Обычно это выходит само — компонент
+  // размонтируется, — но когда один компонент обслуживает два маршрута
+  // (так устроена «Диагностика» внутри «Ещё»), прокрутка переживает переход,
+  // и вглубь человек попадал бы в середину короткого списка.
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: 0 })
+  }, [location.pathname])
 
   return (
     <div ref={contentRef} className="flex h-full min-h-0 w-full flex-col">
