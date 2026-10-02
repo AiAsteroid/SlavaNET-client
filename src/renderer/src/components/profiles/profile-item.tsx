@@ -296,11 +296,20 @@ const ProfileItem: React.FC<Props> = (props) => {
           }
         }}
         className={cn(
-          'group relative rounded-2xl backdrop-blur-3xl border px-4 pt-3 pb-2 cursor-pointer transition-all duration-200',
-          isCurrent
-            ? 'border-stroke-profile-active bg-profile-active hover:bg-profile-active/90'
-            : 'border-stroke-profile-inactive bg-profile-inactive hover:bg-accent/60',
-          selecting && 'opacity-60 scale-[0.98]',
+          'group relative cursor-pointer rounded-xl px-4 pt-3 pb-2 transition-colors duration-200',
+          // Рамки нет — поверхность отделяет от фона заливка
+          // (см. «Ступень светлее» в main.css). Радиус карточки, а не панели.
+          //
+          // ⚠️ Выбранная подписка подсвечена СИНИМ, а не зелёным. Зелёное в
+          // приложении значит «ВПН включён», и больше ничего; подсветка тем же
+          // цветом размывала единственное состояние, ради которого человек
+          // открывает программу. Рецепт тот же, что у выбранного сервера
+          // (connect/server-list.tsx): в темноте подмешиваем в прозрачность,
+          // на светлой «шампани» — в белый, иначе синий мутнеет до серо-лилового.
+          '[--sn-selected:color-mix(in_oklab,#2563eb_12%,#ffffff)]',
+          'dark:[--sn-selected:color-mix(in_oklab,#3b82f6_20%,transparent)]',
+          isCurrent ? 'bg-[color:var(--sn-selected)]' : 'bg-card hover:bg-accent',
+          selecting && 'scale-[0.98] opacity-60',
           switching && 'cursor-wait'
         )}
       >
