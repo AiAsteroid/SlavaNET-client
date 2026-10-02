@@ -189,6 +189,10 @@ const ControllerSetting: React.FC = () => {
             label={t('mihomo.controllerSettings.accessSecret')}
             value={secret ?? ''}
             width={150}
+            // ⚠️ Точками, как было до перевода экрана (там стоял type="password").
+            // Поддержка штатно просит снимок экрана настроек ядра, и открытый
+            // ключ уходил бы в тикет или в запись демонстрации экрана.
+            masked
             onCommit={async (next) => {
               await onChangeNeedRestart({ secret: next })
             }}
@@ -279,11 +283,19 @@ const ControllerSetting: React.FC = () => {
                 onChange={(items) => {
                   const next = items as string[]
                   setAllowOriginsInput(next)
+                  // ⚠️ Пустой список в ядро сам не уезжает. Пустота здесь
+                  // означает '*', то есть «внешний контроллер открыт любому
+                  // источнику», а пустым список бывает ровно в середине
+                  // правки: удалил единственный адрес и пошёл печатать новый.
+                  // Через паузу в 600мс защита снималась бы сама собой, без
+                  // единого нажатия. Пустоту оставляем человеку: пока он не
+                  // ввёл ни одного адреса, в ядре остаётся прежнее значение.
+                  if (next.length === 0) return
                   commitAllowOrigins(() =>
                     onChangeNeedRestart({
                       'external-controller-cors': {
                         ...externalControllerCors,
-                        'allow-origins': next.length == 0 ? ['*'] : next
+                        'allow-origins': next
                       }
                     })
                   )

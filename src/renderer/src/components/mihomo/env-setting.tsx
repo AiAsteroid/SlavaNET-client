@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useState } from 'react'
 import { toast } from 'sonner'
 import PubSub from 'pubsub-js'
 import { useTranslation } from 'react-i18next'
@@ -19,33 +19,6 @@ import { platform } from '@renderer/utils/init'
 // другой человек, новых ключей здесь не появляется. Поэтому вторая группа
 // называется ровно так, как раньше называлась её строка — «Доверенный путь»
 // (mihomo.envSettings.trustedPath).
-
-/** Пауза в наборе, после которой список записывается в конфиг, мс. */
-const LIST_COMMIT_MS = 600
-
-// Отложенная запись списка. Копия заготовки из
-// components/settings/advanced-settings.tsx — правя её там, правь и здесь.
-//
-// ⚠️ Без неё правка уходила в конфиг на КАЖДЫЙ символ: EditableList зовёт
-// onChange на каждое нажатие, а здесь следом ещё и ПЕРЕЗАПУСКАЕТСЯ ЯДРО —
-// недописанный путь ронял бы соединение на каждой букве. Раньше от этого
-// спасала кнопка «Подтвердить», но кнопок рядом с полем у нас больше нет, и
-// паузу надо держать здесь.
-function useDeferredCommit(): (run: () => void | Promise<unknown>) => void {
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  useEffect(
-    () => () => {
-      if (timer.current) clearTimeout(timer.current)
-    },
-    []
-  )
-  return (run) => {
-    if (timer.current) clearTimeout(timer.current)
-    timer.current = setTimeout(() => {
-      void run()
-    }, LIST_COMMIT_MS)
-  }
-}
 
 const EnvSetting: React.FC = () => {
   const { t } = useTranslation()
@@ -72,7 +45,6 @@ const EnvSetting: React.FC = () => {
   // уходит в главный процесс и возвращается через SWR, и список, показанный
   // прямо из конфига, терял бы символы при быстром наборе.
   const [safePathsInput, setSafePathsInput] = useState(safePaths)
-  const commitSafePaths = useDeferredCommit()
 
   return (
     <>
@@ -114,15 +86,27 @@ const EnvSetting: React.FC = () => {
       </Group>
 
       <Group title={t('mihomo.envSettings.trustedPath')}>
-        <div className="px-3 py-2">
+        {/* ⚠️ Список записывается по уходу фокуса ИЗ ВСЕГО редактора, а не по
+            паузе в наборе. Запись здесь — это patchAppConfig плюс ПЕРЕЗАПУСК
+            ЯДРА: путь уезжает в ядро переменной окружения SAFE_PATHS при
+            запуске, горячей перезагрузкой его не доставить. С паузой в 600мс
+            человек, набирающий «/Applications/Telegram.app» с остановками,
+            ронял бы все соединения по нескольку раз за один путь, да ещё и
+            записывал бы в конфиг обрезанные куски. Перезапуск нужен — лишним
+            было то, что его звало. */}
+        <div
+          className="px-3 py-2"
+          onBlur={(e) => {
+            // Переход между полями внутри самого редактора уходом не считаем.
+            if (e.currentTarget.contains(e.relatedTarget as Node | null)) return
+            if (safePathsInput.join('\u0000') === (safePaths ?? []).join('\u0000')) return
+            void handleConfigChangeWithRestart('safePaths', safePathsInput)
+          }}
+        >
           <EditableList
             items={safePathsInput}
             divider={false}
-            onChange={(list) => {
-              const next = list as string[]
-              setSafePathsInput(next)
-              commitSafePaths(() => handleConfigChangeWithRestart('safePaths', next))
-            }}
+            onChange={(list) => setSafePathsInput(list as string[])}
           />
         </div>
       </Group>

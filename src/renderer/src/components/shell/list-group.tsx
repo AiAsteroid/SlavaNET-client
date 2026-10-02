@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { ChevronRight, ChevronsUpDown, CreditCard, ExternalLink } from 'lucide-react'
+import { ChevronRight, ChevronsUpDown, CreditCard, Eye, EyeOff, ExternalLink } from 'lucide-react'
 import { Spinner } from '@renderer/components/ui/spinner'
 import { Switch } from '@renderer/components/ui/switch'
 import {
@@ -251,10 +251,31 @@ export const FieldRow: React.FC<
     width?: number
     disabled?: boolean
     inputMode?: React.HTMLAttributes<HTMLInputElement>['inputMode']
+    /**
+     * Прятать значение точками, как пароль, и дать кнопку «показать».
+     *
+     * ⚠️ Нужно ключу внешнего контроллера. До перевода экрана на набор строк
+     * он был полем type="password", и при переводе маскировка потерялась:
+     * поддержка штатно просит снимок экрана настроек ядра, и ключ уходил бы
+     * в тикет открытым текстом.
+     */
+    masked?: boolean
   }
-> = ({ icon, label, sub, value, onCommit, placeholder, width = 96, disabled, inputMode }) => {
+> = ({
+  icon,
+  label,
+  sub,
+  value,
+  onCommit,
+  placeholder,
+  width = 96,
+  disabled,
+  inputMode,
+  masked
+}) => {
   const [draft, setDraft] = useState(value)
   const [busy, setBusy] = useState(false)
+  const [revealed, setRevealed] = useState(false)
   const focused = useRef(false)
 
   // Значение могло измениться снаружи — например, конфиг перечитали. Пока поле
@@ -277,8 +298,24 @@ export const FieldRow: React.FC<
     <div className={cn(SHELL, sub ? H_TWO : H_ONE, disabled && 'pointer-events-none opacity-40')}>
       <Body icon={icon} label={label} sub={sub} />
       {busy && <Spinner className="size-3.5 shrink-0 text-muted-foreground" />}
+      {masked && (
+        <button
+          type="button"
+          onClick={() => setRevealed((v) => !v)}
+          aria-label={revealed ? 'Скрыть' : 'Показать'}
+          aria-pressed={revealed}
+          className={cn(
+            'flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-lg',
+            'text-muted-foreground transition-colors hover:bg-accent hover:text-foreground',
+            'outline-none focus-visible:ring-2 focus-visible:ring-primary'
+          )}
+        >
+          {revealed ? <EyeOff className="size-4" aria-hidden /> : <Eye className="size-4" aria-hidden />}
+        </button>
+      )}
       <input
         value={draft}
+        type={masked && !revealed ? 'password' : 'text'}
         placeholder={placeholder}
         inputMode={inputMode}
         disabled={disabled}

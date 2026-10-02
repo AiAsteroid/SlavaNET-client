@@ -820,6 +820,7 @@ export default {
 
   mihomo: {
     portSettings: {
+      portTaken: 'Port {{port}} is already used by another setting',
       title: 'Port Settings',
       mixedPort: 'Mixed Port',
       socksPort: 'SOCKS Port',

@@ -1,3 +1,4 @@
+import { toast } from 'sonner'
 import React, { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Gauge, Globe, MonitorSmartphone, Network, Route, Unplug, Zap } from 'lucide-react'
@@ -116,9 +117,17 @@ const PortSetting: React.FC = () => {
 
   const commitPort = async (key: PortKey, raw: string): Promise<void> => {
     // Границы были у самого поля (min=0, max=65535).
-    let num = parseInt(raw)
-    if (isNaN(num) || num < 0) num = 0
-    if (num > 65535) num = 65535
+    //
+    // ⚠️ Пустое и мусорное поле — это НЕ «порт 0». Ноль у ядра значит «порт
+    // выключен», и прежняя кламповка в ноль давала так: человек стирает
+    // смешанный порт, чтобы вписать новый, отвлекается, уходит фокусом — и
+    // основной порт прокси выключается сам собой. Теперь такая правка просто
+    // отвергается, а строка возвращается к сохранённому значению.
+    const num = parseInt(raw, 10)
+    if (isNaN(num) || num < 0 || num > 65535) {
+      setPortRevision((n) => n + 1)
+      return
+    }
     if (num === ports[key]) return
 
     // ⚠️ Столкновение портов. Раньше его ловила кнопка «Подтвердить»: пока два
@@ -128,6 +137,10 @@ const PortSetting: React.FC = () => {
     // нет. Ноль значит «порт выключен» и столкновением не считается.
     const taken = (Object.keys(ports) as PortKey[]).filter((k) => k !== key).map((k) => ports[k])
     if (num !== 0 && taken.includes(num)) {
+      // ⚠️ Молча откатывать нельзя. Число просто перескакивало обратно, и это
+      // читается как «клиент не сохраняет настройки»: человек вписывает снова,
+      // снова откат, и уходит в поддержку. Говорим, что порт занят.
+      toast.error(t('mihomo.portSettings.portTaken', { port: num }))
       setPortRevision((n) => n + 1)
       return
     }

@@ -763,6 +763,7 @@ export default {
 
   mihomo: {
     portSettings: {
+      portTaken: '端口 {{port}} 已被其他设置占用',
       title: '端口设置',
       mixedPort: '混合端口',
       socksPort: 'Socks 端口',

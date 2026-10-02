@@ -825,6 +825,7 @@ export default {
 
   mihomo: {
     portSettings: {
+      portTaken: 'Порт {{port}} уже занят другой настройкой',
       title: 'Настройки портов',
       mixedPort: 'Смешанный порт',
       socksPort: 'SOCKS-порт',
