@@ -1,4 +1,5 @@
 import { Badge } from '@renderer/components/ui/badge'
+import ProxyName from '@renderer/components/base/proxy-name'
 import { Card, CardContent } from '@renderer/components/ui/card'
 import React from 'react'
 
@@ -20,11 +21,9 @@ const RuleItem: React.FC<ControllerRulesDetail & { index: number }> = (props) =>
             <Badge variant="outline" className="rounded-sm">
               {type}
             </Badge>
-            <Badge
-              variant="outline"
-              className="rounded-sm flag-emoji whitespace-nowrap overflow-hidden"
-            >
-              {proxy}
+            <Badge variant="outline" className="overflow-hidden rounded-sm whitespace-nowrap">
+              {/* Имя узла с нашим флагом — см. connection-item.tsx. */}
+              <ProxyName name={proxy} size={12} />
             </Badge>
           </div>
         </CardContent>

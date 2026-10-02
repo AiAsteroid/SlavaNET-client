@@ -1,4 +1,5 @@
 import { Button } from '@renderer/components/ui/button'
+import ProxyName from '@renderer/components/base/proxy-name'
 import { useProcessIcon, useProcessAppName } from '@renderer/store/icons-store'
 import { calcTraffic } from '@renderer/utils/calc'
 import dayjs from 'dayjs'
@@ -152,9 +153,14 @@ const ConnectionItemComponent: React.FC<Props> = ({
                 {info.metadata.type}({info.metadata.network.toUpperCase()})
               </span>
               <span className="text-xs text-muted-foreground/40">|</span>
-              <span className="flag-emoji text-xs text-muted-foreground truncate">
-                {info.chains[0]}
-              </span>
+              {/* Имя узла — то же, что в списке серверов, и флаг у него такой
+                  же: картинка, а не эмодзи. На Windows эмодзи-флаг система
+                  рисует двумя буквами кода, и строка выглядит сломанной. */}
+              <ProxyName
+                name={info.chains[0]}
+                size={12}
+                className="text-xs text-muted-foreground"
+              />
               <span className="text-xs text-muted-foreground/40">|</span>
               <span className="text-xs text-muted-foreground tabular-nums">
                 ↑ {uploadTraffic} ↓ {downloadTraffic}
