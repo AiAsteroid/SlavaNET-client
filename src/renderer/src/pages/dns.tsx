@@ -1,13 +1,9 @@
 import { toast } from 'sonner'
+import { Globe, Network, Route } from 'lucide-react'
 import { Button } from '@renderer/components/ui/button'
-import { Input } from '@renderer/components/ui/input'
-import { Switch } from '@renderer/components/ui/switch'
-import { Tabs, TabsList, TabsTrigger } from '@renderer/components/ui/tabs'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
 import BasePage from '@renderer/components/base/base-page'
-import SettingCard from '@renderer/components/base/base-setting-card'
-import SettingItem from '@renderer/components/base/base-setting-item'
 import EditableList from '@renderer/components/base/base-list-editor'
+import { FieldRow, Group, SegmentRow, SwitchRow } from '@renderer/components/shell/list-group'
 import AdvancedDnsSetting from '@renderer/components/dns/advanced-dns-setting'
 import { useControledMihomoConfig } from '@renderer/hooks/use-controled-mihomo-config'
 import { useAppConfig } from '@renderer/hooks/use-app-config'
@@ -20,6 +16,22 @@ import {
 } from '@renderer/utils/validate'
 import { useTranslation } from 'react-i18next'
 
+// Экран DNS на общем наборе строк (components/shell/list-group). Было: одна
+// карточка старого вида на семь настроек, где переключатель, вкладки, два поля
+// и три списка-редактора шли подряд без заголовков.
+//
+// ⚠️ Кнопка «Сохранить» в ШАПКЕ осталась: она не «подтвердить рядом с полем», а
+// применение всего экрана сразу — ядро перечитывает конфиг целиком, и писать в
+// него на каждый введённый символ нельзя. Поля (FieldRow) применяют правку в
+// черновик по уходу и по Enter, а кнопка отправляет черновик ядру.
+//
+// ⚠️ Ошибка формата раньше показывалась всплывающей подсказкой у поля. Теперь
+// она во второй строке самой настройки, красным: подсказка висела поверх
+// соседней строки и исчезала при первом же движении мыши. Текст тот же, ключи
+// перевода те же.
+//
+// ⚠️ Списки-редакторы (EditableList) оставлены как есть — заголовок каждого
+// переехал в заголовок его группы, из тех же ключей.
 const DNS: React.FC = () => {
   const { t } = useTranslation()
   const { controledMihomoConfig, patchControledMihomoConfig } = useControledMihomoConfig()
@@ -155,163 +167,161 @@ const DNS: React.FC = () => {
         )
       }
     >
-      <SettingCard>
-        <SettingItem title={t('pages.dns.ipv6')} divider>
-          <Switch
+      <div className="px-4 pt-1">
+        <Group>
+          <SwitchRow
+            icon={Globe}
+            label={t('pages.dns.ipv6')}
             checked={values.ipv6}
             onCheckedChange={(v) => {
               setValues({ ...values, ipv6: v })
             }}
           />
-        </SettingItem>
-        <SettingItem title={t('pages.dns.domainMappingMode')} divider>
-          <Tabs
+          <SegmentRow
+            icon={Route}
+            label={t('pages.dns.domainMappingMode')}
             value={values.enhancedMode}
-            onValueChange={(value) => setValues({ ...values, enhancedMode: value as DnsMode })}
-          >
-            <TabsList>
-              <TabsTrigger value="fake-ip">{t('pages.dns.fakeIP')}</TabsTrigger>
-              <TabsTrigger value="redir-host">{t('pages.dns.realIP')}</TabsTrigger>
-              <TabsTrigger value="normal">{t('pages.dns.cancelMapping')}</TabsTrigger>
-            </TabsList>
-          </Tabs>
-        </SettingItem>
+            options={[
+              { value: 'fake-ip', label: t('pages.dns.fakeIP') },
+              { value: 'redir-host', label: t('pages.dns.realIP') },
+              { value: 'normal', label: t('pages.dns.cancelMapping') }
+            ]}
+            onChange={(value) => setValues({ ...values, enhancedMode: value as DnsMode })}
+          />
+          {values.enhancedMode === 'fake-ip' && (
+            <>
+              <FieldRow
+                icon={Network}
+                label={t('pages.dns.fakeIPRangeIPv4')}
+                sub={
+                  fakeIPRangeError ? (
+                    <span className="text-destructive">{fakeIPRangeError}</span>
+                  ) : undefined
+                }
+                value={values.fakeIPRange}
+                width={150}
+                placeholder={t('pages.dns.placeholderExample') + ': 198.18.0.1/16'}
+                onCommit={(next) => {
+                  setValues({ ...values, fakeIPRange: next })
+                  const r = isValidIPv4Cidr(next)
+                  setFakeIPRangeError(r.ok ? null : (r.error ?? t('common.formatError')))
+                }}
+              />
+              {values.ipv6 && (
+                <FieldRow
+                  icon={Network}
+                  label={t('pages.dns.fakeIPRangeIPv6')}
+                  sub={
+                    fakeIPRange6Error ? (
+                      <span className="text-destructive">{fakeIPRange6Error}</span>
+                    ) : undefined
+                  }
+                  value={values.fakeIPRange6}
+                  width={150}
+                  placeholder={t('pages.dns.placeholderExample') + ': fc00::/18'}
+                  onCommit={(next) => {
+                    setValues({ ...values, fakeIPRange6: next })
+                    const r = isValidIPv6Cidr(next)
+                    setFakeIPRange6Error(r.ok ? null : (r.error ?? t('common.formatError')))
+                  }}
+                />
+              )}
+            </>
+          )}
+        </Group>
+
         {values.enhancedMode === 'fake-ip' && (
-          <>
-            <SettingItem title={t('pages.dns.fakeIPRangeIPv4')} divider>
-              <Tooltip open={!!fakeIPRangeError}>
-                <TooltipTrigger asChild>
-                  <Input
-                    className={
-                      `h-8 w-[40%] ` +
-                      (fakeIPRangeError ? 'border-red-500 ring-1 ring-red-500 rounded-lg' : '')
-                    }
-                    placeholder={t('pages.dns.placeholderExample') + ': 198.18.0.1/16'}
-                    value={values.fakeIPRange}
-                    onChange={(event) => {
-                      const v = event.target.value
-                      setValues({ ...values, fakeIPRange: v })
-                      const r = isValidIPv4Cidr(v)
-                      setFakeIPRangeError(r.ok ? null : (r.error ?? t('common.formatError')))
-                    }}
-                  />
-                </TooltipTrigger>
-                <TooltipContent
-                  side="right"
-                  sideOffset={15}
-                  className="bg-destructive text-destructive-foreground"
-                >
-                  {fakeIPRangeError ?? t('common.formatError')}
-                </TooltipContent>
-              </Tooltip>
-            </SettingItem>
-            {values.ipv6 && (
-              <SettingItem title={t('pages.dns.fakeIPRangeIPv6')} divider>
-                <Tooltip open={!!fakeIPRange6Error}>
-                  <TooltipTrigger asChild>
-                    <Input
-                      className={
-                        `h-8 w-[40%] ` +
-                        (fakeIPRange6Error ? 'border-red-500 ring-1 ring-red-500 rounded-lg' : '')
-                      }
-                      placeholder={t('pages.dns.placeholderExample') + ': fc00::/18'}
-                      value={values.fakeIPRange6}
-                      onChange={(event) => {
-                        const v = event.target.value
-                        setValues({ ...values, fakeIPRange6: v })
-                        const r = isValidIPv6Cidr(v)
-                        setFakeIPRange6Error(r.ok ? null : (r.error ?? t('common.formatError')))
-                      }}
-                    />
-                  </TooltipTrigger>
-                  <TooltipContent
-                    side="right"
-                    sideOffset={10}
-                    className="bg-destructive text-destructive-foreground"
-                  >
-                    {fakeIPRange6Error ?? t('common.formatError')}
-                  </TooltipContent>
-                </Tooltip>
-              </SettingItem>
-            )}
+          <Group title={t('pages.dns.fakeIPFilter')}>
+            <div className="px-3 py-2">
+              <EditableList
+                items={values.fakeIPFilter}
+                validate={(part) => isValidDomainWildcard(part as string)}
+                onChange={(list) => {
+                  const arr = list as string[]
+                  setValues({ ...values, fakeIPFilter: arr })
+                  const firstInvalid = arr.find((f) => !isValidDomainWildcard(f).ok)
+                  setFakeIPFilterError(
+                    firstInvalid ? (isValidDomainWildcard(firstInvalid).error ?? t('common.formatError')) : null
+                  )
+                }}
+                placeholder={t('pages.dns.placeholderLan')}
+                divider={false}
+              />
+            </div>
+          </Group>
+        )}
+
+        <Group title={t('pages.dns.baseServer')}>
+          <div className="px-3 py-2">
             <EditableList
-              title={t('pages.dns.fakeIPFilter')}
-              items={values.fakeIPFilter}
-              validate={(part) => isValidDomainWildcard(part as string)}
+              items={values.defaultNameserver}
+              validate={(part) => isValidDnsServer(part as string, true)}
               onChange={(list) => {
                 const arr = list as string[]
-                setValues({ ...values, fakeIPFilter: arr })
-                const firstInvalid = arr.find((f) => !isValidDomainWildcard(f).ok)
-                setFakeIPFilterError(
-                  firstInvalid ? (isValidDomainWildcard(firstInvalid).error ?? t('common.formatError')) : null
+                setValues({ ...values, defaultNameserver: arr })
+                const firstInvalid = arr.find((f) => !isValidDnsServer(f, true).ok)
+                setDefaultNameserverError(
+                  firstInvalid ? (isValidDnsServer(firstInvalid, true).error ?? t('common.formatError')) : null
                 )
               }}
-              placeholder={t('pages.dns.placeholderLan')}
+              placeholder={t('pages.dns.placeholderDNS')}
+              divider={false}
             />
-          </>
-        )}
-        <EditableList
-          title={t('pages.dns.baseServer')}
-          items={values.defaultNameserver}
-          validate={(part) => isValidDnsServer(part as string, true)}
-          onChange={(list) => {
-            const arr = list as string[]
-            setValues({ ...values, defaultNameserver: arr })
-            const firstInvalid = arr.find((f) => !isValidDnsServer(f, true).ok)
-            setDefaultNameserverError(
-              firstInvalid ? (isValidDnsServer(firstInvalid, true).error ?? t('common.formatError')) : null
-            )
+          </div>
+        </Group>
+
+        <Group title={t('pages.dns.defaultResolver')}>
+          <div className="px-3 py-2">
+            <EditableList
+              items={values.nameserver}
+              validate={(part) => isValidDnsServer(part as string)}
+              onChange={(list) => {
+                const arr = list as string[]
+                setValues({ ...values, nameserver: arr })
+                const firstInvalid = arr.find((f) => !isValidDnsServer(f).ok)
+                setNameserverError(
+                  firstInvalid ? (isValidDnsServer(firstInvalid).error ?? t('common.formatError')) : null
+                )
+              }}
+              placeholder={t('pages.dns.placeholderTLS')}
+              divider={false}
+            />
+          </div>
+        </Group>
+
+        <AdvancedDnsSetting
+          respectRules={values.respectRules}
+          directNameserver={values.directNameserver}
+          proxyServerNameserver={values.proxyServerNameserver}
+          nameserverPolicy={values.nameserverPolicy}
+          hosts={values.hosts}
+          useHosts={values.useHosts}
+          useSystemHosts={values.useSystemHosts}
+          onRespectRulesChange={(v) => {
+            setValues({
+              ...values,
+              respectRules: values.proxyServerNameserver.length === 0 ? false : v
+            })
           }}
-          placeholder={t('pages.dns.placeholderDNS')}
-        />
-        <EditableList
-          title={t('pages.dns.defaultResolver')}
-          items={values.nameserver}
-          validate={(part) => isValidDnsServer(part as string)}
-          onChange={(list) => {
-            const arr = list as string[]
-            setValues({ ...values, nameserver: arr })
-            const firstInvalid = arr.find((f) => !isValidDnsServer(f).ok)
-            setNameserverError(
-              firstInvalid ? (isValidDnsServer(firstInvalid).error ?? t('common.formatError')) : null
-            )
+          onDirectNameserverChange={(arr) => {
+            setValues({ ...values, directNameserver: arr })
           }}
-          placeholder={t('pages.dns.placeholderTLS')}
-          divider={false}
+          onProxyNameserverChange={(arr) => {
+            setValues({
+              ...values,
+              proxyServerNameserver: arr,
+              respectRules: arr.length === 0 ? false : values.respectRules
+            })
+          }}
+          onNameserverPolicyChange={(newValue) => {
+            setValues({ ...values, nameserverPolicy: newValue })
+          }}
+          onUseSystemHostsChange={(v) => setValues({ ...values, useSystemHosts: v })}
+          onUseHostsChange={(v) => setValues({ ...values, useHosts: v })}
+          onHostsChange={(hostArr) => setValues({ ...values, hosts: hostArr })}
+          onErrorChange={setAdvancedDnsError}
         />
-      </SettingCard>
-      <AdvancedDnsSetting
-        respectRules={values.respectRules}
-        directNameserver={values.directNameserver}
-        proxyServerNameserver={values.proxyServerNameserver}
-        nameserverPolicy={values.nameserverPolicy}
-        hosts={values.hosts}
-        useHosts={values.useHosts}
-        useSystemHosts={values.useSystemHosts}
-        onRespectRulesChange={(v) => {
-          setValues({
-            ...values,
-            respectRules: values.proxyServerNameserver.length === 0 ? false : v
-          })
-        }}
-        onDirectNameserverChange={(arr) => {
-          setValues({ ...values, directNameserver: arr })
-        }}
-        onProxyNameserverChange={(arr) => {
-          setValues({
-            ...values,
-            proxyServerNameserver: arr,
-            respectRules: arr.length === 0 ? false : values.respectRules
-          })
-        }}
-        onNameserverPolicyChange={(newValue) => {
-          setValues({ ...values, nameserverPolicy: newValue })
-        }}
-        onUseSystemHostsChange={(v) => setValues({ ...values, useSystemHosts: v })}
-        onUseHostsChange={(v) => setValues({ ...values, useHosts: v })}
-        onHostsChange={(hostArr) => setValues({ ...values, hosts: hostArr })}
-        onErrorChange={setAdvancedDnsError}
-      />
+      </div>
     </BasePage>
   )
 }

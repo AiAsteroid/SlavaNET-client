@@ -376,8 +376,20 @@ const ConnectionTable: React.FC<Props> = ({
   const visibleColumnsFiltered = columnsWithLabels.filter((col) => col.visible)
 
   return (
-    <div className="h-full flex flex-col border rounded-2xl overflow-hidden mx-2">
-      <div ref={tableRef} className="flex-1 overflow-auto">
+    // Рамку и скругление даёт контейнер списка на странице — здесь их больше
+    // нет, иначе поверх одной карточки рисовалась бы вторая.
+    <div className="flex h-full flex-col overflow-hidden">
+      {/* ⚠️ Запас под капсулу таблица обязана дать себе сама: у списков его
+          даёт подвал Virtuoso (listScroll), а таблица прокручивается своим
+          контейнером, и без отступа нижние строки уехали бы под стекло. */}
+      <div
+        ref={tableRef}
+        className="sn-scroll flex-1 overflow-auto"
+        style={{
+          marginBottom: 'var(--nav-gap)',
+          paddingBottom: 'calc(var(--nav-space) - var(--nav-gap))'
+        }}
+      >
         <table className="w-full border-collapse">
           <thead className="sticky top-0 z-10 bg-muted">
             <tr>
@@ -452,13 +464,16 @@ const ConnectionTable: React.FC<Props> = ({
                   )
                 })}
                 <td className="sticky right-1.5 bg-inherit" onClick={(e) => e.stopPropagation()}>
+                  {/* ⚠️ Заливка была зашита как bg-zinc-900 — почти чёрный
+                      прямоугольник посреди светлой «шампани». Теперь плитка
+                      темы: кнопка видна на прилипшей колонке в обеих темах. */}
                   <Button
-                    variant="default"
+                    variant="ghost"
                     size="icon-sm"
                     className={
                       connection.isActive
-                        ? 'text-amber-500 hover:text-amber-600 hover:bg-amber-500/10 bg-zinc-900'
-                        : 'text-destructive hover:text-destructive hover:bg-destructive/10 bg-zinc-900'
+                        ? 'bg-secondary text-warning hover:bg-warning/15 hover:text-warning'
+                        : 'bg-secondary text-destructive hover:bg-destructive/15 hover:text-destructive'
                     }
                     onClick={() => {
                       close(connection.id)
