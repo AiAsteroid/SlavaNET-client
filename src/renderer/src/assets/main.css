@@ -838,3 +838,273 @@ html.window-material body {
   z-index: -1;
   animation: sticky-header-settle 250ms ease-out forwards;
 }
+
+/* ═══ Кнопка подключения ════════════════════════════════════════════════════
+   Концепт «Г2 · Волна». Разметка — components/connect/power-button.tsx, там же
+   разобрано, почему плашка не заливается зелёным.
+
+   Светящийся знак работает на тёмном фоне. На светлой «шампани» светиться
+   нечему: неон #00FC51 по #F7E7CE выцветает до незаметного, поэтому там
+   включённое состояние держит плотный тёмно-зелёный #0E5227 из той же
+   брендовой тройки, а градиент работает подложкой на вдвое меньшей плотности.
+   Это сознательно другой приём, а не та же кнопка светлее. */
+:root {
+  --power-lit: #0e5227;
+  --power-dim: #9c8a66;
+  --power-core-a: 20%;
+  --power-core-b: 7%;
+  /* Общий множитель темпа: ВСЕ длительности считаются от него. Один
+     множитель вместо пяти независимых чисел — иначе темпы снова разойдутся,
+     как было до 02.10.2026 (дуга 1.1 с против орбиты 6.5 с: читалось гонкой). */
+  --power-t: 1;
+}
+
+.dark {
+  --power-lit: #00fc51;
+  --power-dim: #6b7a93;
+  --power-core-a: 34%;
+  --power-core-b: 12%;
+}
+
+/* ⚠️ Порядок слоёв задаёт z-index, а не порядок в разметке. У волны есть
+   обрезка по кругу, у знака — тень; и то и другое создаёт контекст наложения и
+   перетасовывает порядок отрисовки. Без явного z-index знак пропадал под
+   плашкой. */
+.sn-power > * {
+  grid-area: 1 / 1;
+  place-self: center;
+  position: relative;
+}
+.sn-power-plate {
+  z-index: 1;
+}
+.sn-power-core,
+.sn-power-wave {
+  z-index: 2;
+}
+.sn-power-ring {
+  z-index: 3;
+}
+.sn-power-mark {
+  z-index: 4;
+}
+
+.sn-power-plate {
+  width: 128px;
+  height: 128px;
+  border-radius: 50%;
+  background: var(--card);
+  box-shadow: inset 0 0 0 var(--hairline) var(--stroke);
+  transition: box-shadow 0.5s ease;
+}
+
+/* Градиент из центра наружу. Живёт ВНУТРИ диска: вынести его за край — это
+   прежний внешний ореол, а свет просили внутри круга. */
+.sn-power-core {
+  width: 128px;
+  height: 128px;
+  border-radius: 50%;
+  opacity: 0;
+  background: radial-gradient(
+    closest-side,
+    color-mix(in oklab, var(--power-lit) var(--power-core-a), transparent),
+    color-mix(in oklab, var(--power-lit) var(--power-core-b), transparent) 46%,
+    transparent 78%
+  );
+  transition: opacity 0.6s ease;
+}
+
+/* Волна: кольцо света растёт от центра к краю и тает. Обрезано по диску,
+   иначе уезжает на фон за пределы кнопки. */
+.sn-power-wave {
+  width: 128px;
+  height: 128px;
+  border-radius: 50%;
+  overflow: hidden;
+  opacity: 0;
+}
+.sn-power-wave > i {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  transform: scale(0.2);
+  opacity: 0;
+  background: radial-gradient(
+    closest-side,
+    transparent 30%,
+    color-mix(in oklab, var(--power-lit) 26%, transparent) 54%,
+    transparent 72%
+  );
+}
+
+.sn-power-ring {
+  width: 150px;
+  height: 150px;
+  overflow: visible;
+  opacity: 0;
+}
+.sn-power-ring circle {
+  fill: none;
+  stroke-linecap: round;
+  /* Толщина обводки в пикселях экрана, а не в единицах viewBox: иначе она
+     поехала бы вместе с масштабированием круга. */
+  vector-effect: non-scaling-stroke;
+}
+.sn-power-track {
+  stroke: var(--stroke);
+  stroke-width: 1;
+}
+.sn-power-arc {
+  stroke: var(--power-lit);
+  stroke-width: 2;
+  stroke-dasharray: 0 100;
+}
+
+.sn-power-mark {
+  width: 56px;
+  height: 56px;
+  overflow: visible;
+  color: var(--power-dim);
+  transition:
+    color 0.7s ease,
+    filter 0.7s ease;
+}
+
+/* ── Выключено ─────────────────────────────────────────────────────────────
+   Ничего не задаём: знак серый, плашка нейтральная, кольца нет. */
+
+/* ── Подключение: знак разгорается, свет оживает, дуга бежит ─────────────── */
+.sn-power[data-state='connecting'] .sn-power-mark {
+  color: color-mix(in oklab, var(--power-lit) 72%, var(--power-dim));
+  filter: drop-shadow(0 0 5px color-mix(in oklab, var(--power-lit) 34%, transparent));
+  animation: power-kindle calc(var(--power-t) * 2.6s) ease-in-out infinite;
+}
+.sn-power[data-state='connecting'] .sn-power-core {
+  opacity: 0.62;
+  animation: power-pulse calc(var(--power-t) * 2.6s) ease-in-out infinite alternate;
+}
+.sn-power[data-state='connecting'] .sn-power-wave {
+  opacity: 1;
+}
+.sn-power[data-state='connecting'] .sn-power-wave > i {
+  animation: power-wave calc(var(--power-t) * 2.6s) ease-out infinite;
+}
+.sn-power[data-state='connecting'] .sn-power-ring {
+  opacity: 1;
+}
+.sn-power[data-state='connecting'] .sn-power-arc {
+  stroke-dasharray: 24 76;
+  animation: power-spin calc(var(--power-t) * 2.6s) linear infinite;
+}
+
+/* ── Подключено ───────────────────────────────────────────────────────────── */
+.sn-power[data-state='on'] .sn-power-plate {
+  box-shadow: inset 0 0 0 var(--hairline) color-mix(in oklab, var(--power-lit) 30%, transparent);
+}
+.sn-power[data-state='on'] .sn-power-mark {
+  color: var(--power-lit);
+  /* Тень статическая. Анимированные тень и фильтр пересчитываются каждый
+     кадр — на кнопке, которая видна всё время, это греет ноутбук. Двигаются
+     только opacity и transform: их считает композитор. */
+  filter: drop-shadow(0 0 8px color-mix(in oklab, var(--power-lit) 55%, transparent));
+}
+.sn-power[data-state='on'] .sn-power-core {
+  opacity: 0.78;
+}
+.sn-power[data-state='on'] .sn-power-wave {
+  opacity: 1;
+}
+.sn-power[data-state='on'] .sn-power-wave > i {
+  animation: power-wave calc(var(--power-t) * 5.6s) ease-out infinite;
+}
+.sn-power[data-state='on'] .sn-power-ring {
+  opacity: 1;
+}
+.sn-power[data-state='on'] .sn-power-track {
+  stroke: color-mix(in oklab, var(--power-lit) 26%, transparent);
+}
+.sn-power[data-state='on'] .sn-power-arc {
+  stroke-dasharray: 10 90;
+  animation: power-spin calc(var(--power-t) * 11s) linear infinite;
+}
+
+/* ── Отключение ───────────────────────────────────────────────────────────── */
+.sn-power[data-state='disconnecting'] .sn-power-mark {
+  color: color-mix(in oklab, var(--power-lit) 40%, var(--power-dim));
+}
+.sn-power[data-state='disconnecting'] .sn-power-core {
+  opacity: 0.3;
+}
+.sn-power[data-state='disconnecting'] .sn-power-ring {
+  opacity: 1;
+}
+.sn-power[data-state='disconnecting'] .sn-power-arc {
+  stroke-dasharray: 24 76;
+  animation: power-spin-back calc(var(--power-t) * 2.6s) linear infinite;
+}
+
+/* Диапазоны намеренно узкие: свет не уходит в ноль и обратно. Полный заход в
+   ноль читается как мигание, то есть «что-то не так», а не «работает». Так же
+   сделан индикатор сна у самого macOS: яркость дышит, лампа не гаснет. */
+@keyframes power-pulse {
+  from {
+    opacity: 0.58;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes power-kindle {
+  0%,
+  100% {
+    opacity: 0.66;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+@keyframes power-wave {
+  0% {
+    transform: scale(0.2);
+    opacity: 0;
+  }
+  22% {
+    opacity: 0.95;
+  }
+  100% {
+    transform: scale(1.75);
+    opacity: 0;
+  }
+}
+@keyframes power-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes power-spin-back {
+  to {
+    transform: rotate(-360deg);
+  }
+}
+
+/* Окно не на переднем плане — кадр замирает на месте. Пауза, а не снятие:
+   `animation: none` вернуло бы нулевой кадр, и при возврате свет дёрнулся бы.
+
+   ⚠️ `!important` здесь обязателен, и вот почему. Правила состояний задают
+   анимацию СОКРАЩЁННЫМ свойством `animation`, а сокращённое сбрасывает
+   `animation-play-state` в начальное `running`. Плюс они специфичнее: у
+   `.sn-power[data-state='on'] .sn-power-wave > i` вес (0,3,1) против (0,2,0) у
+   правила ниже. Замерено 02.10.2026 без `!important`: в фоне
+   `animationPlayState` оставался `running`, то есть пауза не работала вовсе. */
+.sn-power[data-still] *,
+.sn-power[data-still] {
+  animation-play-state: paused !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sn-power *,
+  .sn-power {
+    animation: none;
+  }
+}

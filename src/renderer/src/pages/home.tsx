@@ -1,6 +1,7 @@
 import { toast } from 'sonner'
 import TitleStrip from '@renderer/components/shell/title-strip'
 import ServerList from '@renderer/components/connect/server-list'
+import PowerButton, { type PowerState } from '@renderer/components/connect/power-button'
 import { useAppConfig } from '@renderer/hooks/use-app-config'
 import { useControledMihomoConfig } from '@renderer/hooks/use-controled-mihomo-config'
 import { useProfileConfig } from '@renderer/hooks/use-profile-config'
@@ -16,15 +17,7 @@ import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import { memo, useEffect, useMemo, useState } from 'react'
 import dayjs from 'dayjs'
-import {
-  InfinityIcon,
-  ArrowUp,
-  ArrowDown,
-  RefreshCcw,
-  CreditCard,
-  Power,
-  Pause
-} from 'lucide-react'
+import { InfinityIcon, ArrowUp, ArrowDown, RefreshCcw, CreditCard } from 'lucide-react'
 import EditInfoModal from '@renderer/components/profiles/edit-info-modal'
 import ConfirmModal from '@renderer/components/base/base-confirm'
 import SubscriptionEmptyState from '@renderer/components/profiles/subscription-empty-state'
@@ -166,6 +159,18 @@ const Home: React.FC = () => {
     t('pages.home.disconnected')
   ]
   const showConnectedTimer = !loading && isSelected
+
+  // ⚠️ Состояние говорит про ПОДКЛЮЧЕНИЕ, а не про доступность кнопки:
+  // isDisabled уходит в неё отдельным признаком. Если смешать, то при запрете
+  // системного прокси в ручном режиме работающее подключение показывалось бы
+  // погашенной кнопкой — она врала бы про то, идёт ли трафик.
+  const powerState: PowerState = loading
+    ? loadingDirection === 'connecting'
+      ? 'connecting'
+      : 'disconnecting'
+    : isSelected
+      ? 'on'
+      : 'off'
 
   // Current profile & subscription
   const currentProfile = useMemo(() => {
@@ -439,106 +444,12 @@ const Home: React.FC = () => {
               />
             </div>
 
-            <button
-              type="button"
+            <PowerButton
+              state={powerState}
               disabled={isDisabled}
-              onClick={() => onValueChange(!isSelected)}
-              data-guide="home-power-toggle"
-              aria-pressed={isSelected}
-              aria-busy={loading}
-              aria-label={isSelected ? t('pages.home.connected') : t('pages.home.disconnected')}
-              className="relative mt-3 size-32 cursor-pointer rounded-full outline-none transition-transform active:scale-95 focus-visible:ring-2 focus-visible:ring-[color:var(--sn-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent disabled:pointer-events-none disabled:opacity-60"
-            >
-              {/* Ореол. Лежит ПОД кнопкой и шире её: в концепте именно он даёт
-                  включённому состоянию вес, которого не добирает одна заливка.
-                  Только во включённом — в выключенном светиться нечему. */}
-              {isSelected && (
-                <span
-                  aria-hidden
-                  className="pointer-events-none absolute -inset-8 rounded-full"
-                  style={{
-                    background:
-                      'radial-gradient(closest-side, color-mix(in oklab, var(--sn-on) 16%, transparent), transparent 72%)'
-                  }}
-                />
-              )}
-
-              {/* Выключено — нейтральная заливка с обводкой: красный круг на
-                  macOS читается как «опасно, не нажимай», хотя нажать надо
-                  именно его. Цветом отмечено только включённое состояние.
-                  Обводка в волос, а не 2px: толстый край спорил с заливкой и
-                  делал кнопку похожей на пустую рамку. */}
-              <div
-                className={cn(
-                  'flex size-32 items-center justify-center rounded-full transition-colors duration-300',
-                  isSelected ? '' : 'hair-ring bg-card text-foreground'
-                )}
-                style={
-                  isSelected
-                    ? {
-                        // Зелёная заливка плотная, а иконка тёмная: белое по
-                        // #22c55e даёт 2.3:1 (об этом же предупреждение в
-                        // main.css у --success-foreground), а полупрозрачная
-                        // зелень по «шампани» выцветает до неразличимой.
-                        background:
-                          'radial-gradient(at 30% 42%, var(--sn-on), color-mix(in oklab, var(--sn-on) 72%, #06140b) 78%)',
-                        // Три тени разом: мягкий сброс вниз, светлая кромка
-                        // сверху и затемнение снизу внутри — круг получает
-                        // объём без единой нарисованной линии.
-                        boxShadow:
-                          '0 12px 48px color-mix(in oklab, var(--sn-on) 44%, transparent), inset 0 1px 0 rgb(255 255 255 / 30%), inset 0 -10px 26px rgb(6 20 11 / 22%)',
-                        color: '#06140b'
-                      }
-                    : undefined
-                }
-              >
-                {/* Иконки взяты из lucide вместо прежних svg-файлов: в тех
-                    белый #FAFAFA зашит в stroke, и на светлой «шампани» они
-                    исчезали. currentColor красится темой.
-                    Обе лежат друг на друге в общей рамке и меняются
-                    прозрачностью: иначе кадр переключения дёргал бы размер. */}
-                <div className="relative size-14">
-                  <Pause
-                    className={cn(
-                      'absolute inset-0 size-14 transition-all duration-300 ease-out',
-                      !loading && isSelected ? 'scale-100 opacity-100' : 'scale-90 opacity-0'
-                    )}
-                    strokeWidth={2.2}
-                    aria-hidden
-                  />
-                  <Power
-                    className={cn(
-                      'absolute inset-0 size-14 transition-all duration-300 ease-out',
-                      !loading && !isSelected ? 'scale-100 opacity-100' : 'scale-90 opacity-0'
-                    )}
-                    strokeWidth={2.2}
-                    aria-hidden
-                  />
-                </div>
-              </div>
-
-              {/* В переходе крутится дуга по краю кнопки, а не спиннер внутри:
-                  иконка остаётся на месте, и видно, что занята именно кнопка.
-                  Длина дуги — четверть окружности 2π·62 ≈ 390. */}
-              {loading && (
-                <svg
-                  viewBox="0 0 128 128"
-                  className="absolute inset-0 size-32 animate-spin"
-                  aria-hidden
-                >
-                  <circle
-                    cx="64"
-                    cy="64"
-                    r="62"
-                    fill="none"
-                    stroke="var(--sn-accent)"
-                    strokeWidth="3"
-                    strokeLinecap="round"
-                    strokeDasharray="97 293"
-                  />
-                </svg>
-              )}
-            </button>
+              onToggle={() => onValueChange(!isSelected)}
+              ariaLabel={isSelected ? t('pages.home.connected') : t('pages.home.disconnected')}
+            />
 
             {/* Обе строки под кнопкой держат высоту и в выключенном состоянии:
                 они появляются и исчезают прозрачностью, а не потоком. */}
