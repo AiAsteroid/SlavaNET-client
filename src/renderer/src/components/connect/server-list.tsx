@@ -23,9 +23,10 @@ type ProxyNode = ControllerProxiesDetail | ControllerGroupDetail
 const PULL_LIMIT = 120
 /** Доля колеса, уходящая в оттяжку. Меньше единицы: за краем ход тяжелее. */
 const PULL_RATIO = 0.32
-/** Пауза без событий колеса, после которой список отпускают назад, мс. */
-const PULL_RELEASE_MS = 90
-const PULL_SPRING = 'transform .45s cubic-bezier(.16,.84,.3,1.12)'
+/** Жёсткость пружины, 1/с². Выше — быстрее возврат и короче оттяжка. */
+const PULL_STIFFNESS = 150
+/** Затухание. Подобрано на ζ ≈ 0.69: возврат без дрожи, с перелётом около 5 %. */
+const PULL_DAMPING = 17
 
 // Задержка у провайдерских узлов замеряется по имени провайдера, иначе ядро не
 // находит узел и замер молча не происходит.
@@ -121,55 +122,88 @@ const ServerList: React.FC = () => {
     // «Уменьшить движение» в системных настройках — пружины нет совсем.
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
 
+    // Пружина считается каждый кадр, а не включается таймером «тишины».
+    //
+    // ⚠️ Так и только так. Сначала оттяжка держалась, пока идут события колеса,
+    // и отпускалась через 90мс тишины — и выяснилось (владелец 02.10.2026:
+    // «прокрутил, он задержался, а потом отпружинил»), что тишины после рывка
+    // по трекпаду нет почти секунду: macOS досылает инерционный хвост с
+    // затухающими дельтами, и каждая сбрасывала таймер. Список стоял оттянутым
+    // весь хвост. Отличить инерцию от живого пальца в Chromium нечем — фазы
+    // жеста в событии колеса нет. Поэтому возврат не ждёт ничего: он идёт
+    // всегда, а колесо лишь подкидывает оттяжке энергии. Пока палец давит,
+    // подпитка перевешивает возврат и список стоит оттянутым; как только
+    // хвост начинает гаснуть, оттяжка уходит вместе с ним.
     let offset = 0
-    let release: ReturnType<typeof setTimeout> | null = null
+    let velocity = 0
+    let input = 0
+    let frame: number | null = null
+    let last = 0
 
-    const settle = (): void => {
-      offset = 0
-      list.style.transition = PULL_SPRING
-      list.style.transform = ''
-      list.style.marginBottom = ''
-    }
-
-    const onWheel = (e: WheelEvent): void => {
-      const atTop = box.scrollTop <= 0
-      const atBottom = box.scrollTop + box.clientHeight >= box.scrollHeight - 1
-      const pulling = (atTop && e.deltaY < 0) || (atBottom && e.deltaY > 0)
-      if (!pulling && offset === 0) return
-
-      // Затухание: чем дальше оттянут список, тем меньше ход — так ведёт себя
-      // системная отдача, и без этого оттяжка улетает в предел с одного рывка.
-      const ease = 1 - Math.min(Math.abs(offset) / PULL_LIMIT, 0.86)
-      const next = offset - e.deltaY * PULL_RATIO * ease
-
-      // Колесо поехало обратно и перевалило через ноль: отпускаем список и
-      // НЕ перехватываем событие — дальше это уже обычная прокрутка.
-      if (!pulling && (next === 0 || Math.sign(next) !== Math.sign(offset))) {
-        if (release) clearTimeout(release)
-        settle()
+    const paint = (): void => {
+      if (offset === 0) {
+        list.style.transform = ''
+        list.style.marginBottom = ''
         return
       }
-
-      e.preventDefault()
-      offset = Math.max(-PULL_LIMIT, Math.min(PULL_LIMIT, next))
-      list.style.transition = 'none'
       list.style.transform = `translateY(${offset.toFixed(1)}px)`
       // ⚠️ Отрицательный отступ гасит ровно то, что добавил трансформ: иначе
       // сдвинутый список меняет ДЛИНУ прокрутки, и браузер подрезает scrollTop
       // прямо под пальцем. Знак общий для обоих концов — сдвиг и отступ всегда
       // противоположны.
       list.style.marginBottom = `${(-offset).toFixed(1)}px`
+    }
 
-      if (release) clearTimeout(release)
-      release = setTimeout(settle, PULL_RELEASE_MS)
+    const step = (now: number): void => {
+      // Шаг времени ограничен сверху: окно могло уйти в фон, и один огромный
+      // кадр выбросил бы пружину за пределы одним прыжком.
+      const dt = Math.min(0.032, (now - last) / 1000) || 0.016
+      last = now
+
+      offset = Math.max(-PULL_LIMIT, Math.min(PULL_LIMIT, offset + input))
+      input = 0
+
+      velocity += (-PULL_STIFFNESS * offset - PULL_DAMPING * velocity) * dt
+      offset += velocity * dt
+
+      if (Math.abs(offset) < 0.4 && Math.abs(velocity) < 8) {
+        offset = 0
+        velocity = 0
+        paint()
+        frame = null
+        return
+      }
+      paint()
+      frame = requestAnimationFrame(step)
+    }
+
+    const onWheel = (e: WheelEvent): void => {
+      const atTop = box.scrollTop <= 0
+      const atBottom = box.scrollTop + box.clientHeight >= box.scrollHeight - 1
+      const pulling = (atTop && e.deltaY < 0) || (atBottom && e.deltaY > 0)
+      // Не у края — отдаём событие обычной прокрутке. Оставшуюся оттяжку, если
+      // она есть, пружина доведёт до нуля сама, мешать ей не нужно.
+      if (!pulling) return
+
+      e.preventDefault()
+      // Чем дальше оттянут список, тем меньше ход от того же толчка: без этого
+      // один рывок улетает в предел.
+      const ease = 1 - Math.min(Math.abs(offset) / PULL_LIMIT, 0.8)
+      input -= e.deltaY * PULL_RATIO * ease
+
+      if (frame === null) {
+        last = performance.now()
+        frame = requestAnimationFrame(step)
+      }
     }
 
     // passive: false обязателен — без него preventDefault молча не сработает.
     box.addEventListener('wheel', onWheel, { passive: false })
     return (): void => {
       box.removeEventListener('wheel', onWheel)
-      if (release) clearTimeout(release)
-      settle()
+      if (frame !== null) cancelAnimationFrame(frame)
+      list.style.transform = ''
+      list.style.marginBottom = ''
     }
   }, [nodes.length])
 
