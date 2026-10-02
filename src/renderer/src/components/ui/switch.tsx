@@ -15,10 +15,17 @@ function Switch({
       data-slot="switch"
       data-size={size}
       className={cn(
-        "peer group/switch inline-flex shrink-0 items-center rounded-full border transition-all outline-none disabled:cursor-not-allowed disabled:opacity-50",
-        "data-[state=unchecked]:border-stroke data-[state=unchecked]:bg-card/50 data-[state=unchecked]:backdrop-blur-xl",
-        "data-[state=checked]:border-stroke-power-on data-[state=checked]:bg-gradient-to-r data-[state=checked]:from-gradient-start-power-on data-[state=checked]:to-gradient-end-power-on",
-        "focus-visible:ring-2 focus-visible:ring-stroke",
+        // ⚠️ Включённый переключатель СИНИЙ, а не зелёный. Решение владельца
+        // 02.10.2026: зелёное в приложении значит «ВПН включён», и больше
+        // ничего. Раньше зелёный градиент «питания» был потрачен на 67
+        // переключателей и 35 вкладок, и единственное состояние, ради
+        // которого человек открывает программу, перестало читаться.
+        "peer group/switch inline-flex shrink-0 items-center rounded-full transition-all outline-none disabled:cursor-not-allowed disabled:opacity-50",
+        // Выключенный — плитка со своим волоском, а не полупрозрачная карточка:
+        // по карточке bg-card она стала бы с ней одного цвета.
+        "data-[state=unchecked]:bg-secondary data-[state=unchecked]:shadow-[inset_0_0_0_var(--hairline)_var(--stroke)]",
+        "data-[state=checked]:bg-primary",
+        "focus-visible:ring-2 focus-visible:ring-primary",
         "data-[size=default]:h-5 data-[size=default]:w-9 data-[size=sm]:h-4 data-[size=sm]:w-7",
         className
       )}
@@ -27,8 +34,10 @@ function Switch({
       <SwitchPrimitive.Thumb
         data-slot="switch-thumb"
         className={cn(
-          "pointer-events-none block rounded-full ring-0 transition-transform",
-          "data-[state=unchecked]:bg-muted-foreground/60 data-[state=checked]:bg-white",
+          // Бегунок белый в обоих состояниях, как у системного переключателя:
+          // серый в выключенном читался как «недоступно».
+          "pointer-events-none block rounded-full ring-0 shadow-sm transition-transform",
+          "bg-white",
           "group-data-[size=default]/switch:size-3.5 group-data-[size=sm]/switch:size-2.5",
           "data-[state=checked]:translate-x-[calc(100%+4px)] data-[state=unchecked]:translate-x-0.5"
         )}
