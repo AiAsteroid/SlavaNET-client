@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
@@ -73,8 +73,35 @@ interface AdvancedSettingsProps {
 //
 // ⚠️ Кнопок «Подтвердить» больше нет (решение владельца 02.10.2026). Их было
 // три, и каждая появлялась только при изменении значения. Поле применяет
-// правку по уходу и по Enter (FieldRow), а списки — сразу по правке: иначе
-// настройка просто перестала бы сохраняться.
+// правку по уходу и по Enter (FieldRow), а списки — с паузой после набора
+// (useDeferredCommit ниже): иначе настройка просто перестала бы сохраняться.
+/** Пауза в наборе, после которой список записывается в конфиг, мс. */
+const LIST_COMMIT_MS = 600
+
+// Отложенная запись списка.
+//
+// ⚠️ Без неё правка уходила в конфиг на КАЖДЫЙ символ: EditableList зовёт
+// onChange на каждое нажатие, а у списка исключений следом ещё и
+// перезапускалась проверка сети. Раньше от этого спасала кнопка
+// «Подтвердить», но кнопок рядом с полем у нас больше нет, и паузу надо
+// держать здесь. У каждого списка свой таймер: один на двоих отменял бы
+// чужую правку.
+function useDeferredCommit(): (run: () => void | Promise<unknown>) => void {
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(
+    () => () => {
+      if (timer.current) clearTimeout(timer.current)
+    },
+    []
+  )
+  return (run) => {
+    if (timer.current) clearTimeout(timer.current)
+    timer.current = setTimeout(() => {
+      void run()
+    }, LIST_COMMIT_MS)
+  }
+}
+
 const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
   const { showHiddenSettings } = props
   const { t } = useTranslation()
@@ -103,6 +130,8 @@ const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
   // показанный прямо из конфига, терял бы символы при быстром наборе.
   const [pauseSSIDInput, setPauseSSIDInput] = useState(pauseSSIDArray)
   const [bypass, setBypass] = useState(networkDetectionBypass)
+  const commitBypass = useDeferredCommit()
+  const commitPauseSSID = useDeferredCommit()
 
   const envTypeValue = envType as EnvType[]
   const envTypeLabels = envOptions
@@ -303,11 +332,13 @@ const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
             <EditableList
               items={bypass}
               divider={false}
-              onChange={async (list) => {
+              onChange={(list) => {
                 const next = list as string[]
                 setBypass(next)
-                await patchAppConfig({ networkDetectionBypass: next })
-                await startNetworkDetection()
+                commitBypass(async () => {
+                  await patchAppConfig({ networkDetectionBypass: next })
+                  await startNetworkDetection()
+                })
               }}
             />
           </div>
@@ -322,7 +353,7 @@ const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
             onChange={(list) => {
               const next = list as string[]
               setPauseSSIDInput(next)
-              patchAppConfig({ pauseSSID: next })
+              commitPauseSSID(() => patchAppConfig({ pauseSSID: next }))
             }}
           />
         </div>
