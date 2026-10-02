@@ -361,7 +361,16 @@ export default {
       title: '应用设置',
       githubRepo: 'GitHub 仓库',
       telegramChannel: 'Telegram 频道',
-      officialDocs: '官方文档'
+      officialDocs: '官方文档',
+      groupConnection: '连接',
+      groupApp: '应用',
+      groupSections: '分区',
+      groupMaintenance: '维护',
+      groupAbout: '关于',
+      tunHint: '系统全部流量通过 VPN',
+      proxyHint: '仅限支持代理的应用',
+      tunSettings: 'TUN 设置',
+      proxySettings: '系统代理设置'
     },
     profiles: {
       title: '订阅管理',

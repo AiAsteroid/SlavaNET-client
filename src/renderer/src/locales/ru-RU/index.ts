@@ -411,7 +411,16 @@ export default {
       title: 'Настройки приложения',
       githubRepo: 'GitHub-репозиторий',
       telegramChannel: 'Telegram-канал',
-      officialDocs: 'Официальная документация'
+      officialDocs: 'Официальная документация',
+      groupConnection: 'Подключение',
+      groupApp: 'Приложение',
+      groupSections: 'Разделы',
+      groupMaintenance: 'Обслуживание',
+      groupAbout: 'О программе',
+      tunHint: 'Весь трафик системы идёт через VPN',
+      proxyHint: 'Только приложения с поддержкой прокси',
+      tunSettings: 'Настройки TUN',
+      proxySettings: 'Настройки системного прокси'
     },
     profiles: {
       title: 'Профили',

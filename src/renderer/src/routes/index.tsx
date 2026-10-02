@@ -2,6 +2,9 @@ import { Navigate } from 'react-router-dom'
 import Proxies from '@renderer/pages/proxies'
 import Rules from '@renderer/pages/rules'
 import Settings from '@renderer/pages/settings'
+import SettingsAppearance from '@renderer/pages/settings-appearance'
+import SettingsAdvanced from '@renderer/pages/settings-advanced'
+import SettingsShortcuts from '@renderer/pages/settings-shortcuts'
 import Profiles from '@renderer/pages/profiles'
 import Logs from '@renderer/pages/logs'
 import Connections from '@renderer/pages/connections'
@@ -15,6 +18,20 @@ import Home from '@renderer/pages/home'
 import More from '@renderer/pages/more'
 import Subscription from '@renderer/pages/subscription'
 const routes = [
+  // Разделы настроек — отдельные маршруты, а не состояние внутри экрана.
+  // Иначе возврат «назад» выбрасывал бы из раздела в корень приложения.
+  {
+    path: '/settings/appearance',
+    element: <SettingsAppearance />
+  },
+  {
+    path: '/settings/advanced',
+    element: <SettingsAdvanced />
+  },
+  {
+    path: '/settings/shortcuts',
+    element: <SettingsShortcuts />
+  },
   {
     path: '/mihomo',
     element: <Mihomo />

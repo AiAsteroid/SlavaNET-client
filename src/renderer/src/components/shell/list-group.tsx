@@ -153,27 +153,59 @@ Row.displayName = 'Row'
 // ⚠️ Строка здесь <label>, а не <button>: вложить интерактивный контрол внутрь
 // кнопки нельзя — это и невалидная разметка, и сломанная клавиатура. С label
 // нажатие по всей строке переключает, и это поведение системное, а не наше.
+//
+// ⚠️ Если у строки есть ещё и своя кнопка (шестерёнка «настроить подробнее»),
+// обернуть всё в label уже нельзя: нажатие на кнопку внутри label система
+// отдаёт переключателю, и настройки открывались бы вместе с переключением.
+// В этом случае строка — обычный div, а подпись связана с переключателем
+// через htmlFor: нажатие по тексту по-прежнему переключает.
 export const SwitchRow: React.FC<
   BodyProps & {
     checked: boolean
     onCheckedChange: (next: boolean) => void
     disabled?: boolean
     busy?: boolean
+    /** Своя кнопка перед переключателем: «настроить подробнее». */
+    action?: { icon: typeof CreditCard; label: string; onClick: () => void }
   }
-> = ({ icon, label, sub, danger, checked, onCheckedChange, disabled, busy }) => (
-  <label
-    className={cn(
-      SHELL,
-      sub ? H_TWO : H_ONE,
-      'cursor-pointer hover:bg-accent/50',
-      disabled && 'pointer-events-none opacity-40'
-    )}
-  >
-    <Body icon={icon} label={label} sub={sub} danger={danger} />
-    {busy && <Spinner className="size-3.5 shrink-0 text-muted-foreground" />}
-    <Switch checked={checked} onCheckedChange={onCheckedChange} disabled={disabled} />
-  </label>
-)
+> = ({ icon, label, sub, danger, checked, onCheckedChange, disabled, busy, action }) => {
+  const id = React.useId()
+  const shell = cn(
+    SHELL,
+    sub ? H_TWO : H_ONE,
+    'hover:bg-accent/50',
+    disabled && 'pointer-events-none opacity-40'
+  )
+  return action ? (
+    <div className={shell}>
+      {/* Подпись связана с переключателем вручную — см. предупреждение выше. */}
+      <label htmlFor={id} className="contents cursor-pointer">
+        <Body icon={icon} label={label} sub={sub} danger={danger} />
+      </label>
+      {busy && <Spinner className="size-3.5 shrink-0 text-muted-foreground" />}
+      <button
+        type="button"
+        onClick={action.onClick}
+        aria-label={action.label}
+        title={action.label}
+        className={cn(
+          'flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-lg',
+          'text-muted-foreground transition-colors hover:bg-accent hover:text-foreground',
+          'outline-none focus-visible:ring-2 focus-visible:ring-primary'
+        )}
+      >
+        <action.icon className="size-4" aria-hidden />
+      </button>
+      <Switch id={id} checked={checked} onCheckedChange={onCheckedChange} disabled={disabled} />
+    </div>
+  ) : (
+    <label className={cn(shell, 'cursor-pointer')}>
+      <Body icon={icon} label={label} sub={sub} danger={danger} />
+      {busy && <Spinner className="size-3.5 shrink-0 text-muted-foreground" />}
+      <Switch id={id} checked={checked} onCheckedChange={onCheckedChange} disabled={disabled} />
+    </label>
+  )
+}
 
 // ФОРМА 4 — поле ввода, 37 мест.
 //

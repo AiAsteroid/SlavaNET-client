@@ -405,7 +405,16 @@ export default {
       title: 'Application Settings',
       githubRepo: 'GitHub Repository',
       telegramChannel: 'Telegram Channel',
-      officialDocs: 'Official Documentation'
+      officialDocs: 'Official Documentation',
+      groupConnection: 'Connection',
+      groupApp: 'Application',
+      groupSections: 'Sections',
+      groupMaintenance: 'Maintenance',
+      groupAbout: 'About',
+      tunHint: 'All system traffic goes through the VPN',
+      proxyHint: 'Only apps that support a proxy',
+      tunSettings: 'TUN settings',
+      proxySettings: 'System proxy settings'
     },
     profiles: {
       title: 'Profile Management',
