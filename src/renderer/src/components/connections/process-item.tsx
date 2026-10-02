@@ -1,6 +1,7 @@
 import { Badge } from '@renderer/components/ui/badge'
 import { useProcessIcon, useProcessAppName } from '@renderer/store/icons-store'
 import { calcTraffic } from '@renderer/utils/calc'
+import { cn } from '@renderer/lib/utils'
 import React, { memo, useMemo } from 'react'
 import { ChevronRight } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
@@ -52,17 +53,15 @@ const ProcessItemComponent: React.FC<Props> = ({ process, displayIcon, displayAp
   const hasActive = process.activeCount > 0
 
   return (
-    <div className="px-2 pb-2" style={{ height: 72 }}>
+    <div style={{ height: 72 }}>
       <div
-        className={`
-          w-full h-full flex items-center cursor-pointer rounded-xl border
-          transition-all duration-200 ease-out
-          ${
-            hasActive
-              ? 'border-stroke-power-on/30 bg-linear-to-r from-gradient-start-power-on/[0.06] to-card/40 hover:border-stroke-power-on/50 shadow-sm'
-              : 'border-border bg-card/40 hover:bg-accent/50'
-          }
-        `}
+        className={cn(
+          'flex h-full w-full cursor-pointer items-center',
+          'border-b-[length:var(--hairline)] border-stroke transition-colors',
+          hasActive
+            ? 'bg-[color:color-mix(in_oklab,var(--success)_10%,var(--card))] hover:bg-[color:color-mix(in_oklab,var(--success)_16%,var(--card))]'
+            : 'bg-card hover:bg-accent/50'
+        )}
         onClick={() => onClick(process.processPath)}
       >
         <div className="w-full flex items-center">

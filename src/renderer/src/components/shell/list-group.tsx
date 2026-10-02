@@ -23,10 +23,19 @@ import { cn } from '@renderer/lib/utils'
 // Заголовок вынесен НАД карточкой, а не внутрь неё: так работает системный
 // список настроек macOS, и по нему глаз сразу отделяет разделы друг от друга,
 // не читая подписей.
-export const Group: React.FC<{ title?: string; children: React.ReactNode }> = ({
-  title,
-  children
-}) => (
+export const Group: React.FC<{
+  title?: string
+  children: React.ReactNode
+  /**
+   * На чём лежит карточка.
+   *
+   * ⚠️ В диалоге нужен 'muted'. Поверхность диалога — полупрозрачная карточка
+   * поверх затемнения, и в тёмной теме она складывается почти ровно в цвет
+   * фона: карточка bg-card на ней становится неразличима. На этом уже
+   * обожглись со столбиком цен в окне покупки (subscription.tsx).
+   */
+  surface?: 'card' | 'muted'
+}> = ({ title, children, surface = 'card' }) => (
   <section className="mb-4">
     {title && (
       <h2 className="mb-1.5 px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -37,7 +46,14 @@ export const Group: React.FC<{ title?: string; children: React.ReactNode }> = ({
         от фона собственная заливка (см. «Ступень светлее» в main.css). Внутри
         остаётся только волосяной разделитель — и только МЕЖДУ строками, чтобы
         условно скрытая строка не оставляла за собой линию. */}
-    <div className="hair-y overflow-hidden rounded-xl bg-card">{children}</div>
+    <div
+      className={cn(
+        'hair-y overflow-hidden rounded-xl',
+        surface === 'muted' ? 'bg-muted' : 'bg-card'
+      )}
+    >
+      {children}
+    </div>
   </section>
 )
 

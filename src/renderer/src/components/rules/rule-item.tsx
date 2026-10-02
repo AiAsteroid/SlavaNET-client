@@ -1,33 +1,26 @@
+import React from 'react'
 import { Badge } from '@renderer/components/ui/badge'
 import ProxyName from '@renderer/components/base/proxy-name'
-import { Card, CardContent } from '@renderer/components/ui/card'
-import React from 'react'
 
+// Строка правила. Карточки на каждой строке больше нет — см. log-item.tsx.
 const RuleItem: React.FC<ControllerRulesDetail & { index: number }> = (props) => {
-  const { type, payload, proxy, index } = props
+  const { type, payload, proxy } = props
   return (
-    <div className={`px-2 pb-2 ${index === 0 ? 'pt-2' : ''}`}>
-      <Card className="gap-0 py-0">
-        <CardContent className="w-full px-3 py-2">
-          {payload &&
-            <div
-              title={payload}
-              className="text-sm text-ellipsis whitespace-nowrap overflow-hidden mb-1"
-            >
-              {payload}
-            </div>
-          }
-          <div className="flex gap-1.5">
-            <Badge variant="outline" className="rounded-sm">
-              {type}
-            </Badge>
-            <Badge variant="outline" className="overflow-hidden rounded-sm whitespace-nowrap">
-              {/* Имя узла с нашим флагом — см. connection-item.tsx. */}
-              <ProxyName name={proxy} size={12} />
-            </Badge>
-          </div>
-        </CardContent>
-      </Card>
+    <div className="border-b-[length:var(--hairline)] border-stroke bg-card px-3 py-2">
+      {payload && (
+        <div title={payload} className="truncate text-sm">
+          {payload}
+        </div>
+      )}
+      <div className="mt-1 flex gap-1.5">
+        <Badge variant="outline" className="rounded-sm">
+          {type}
+        </Badge>
+        <Badge variant="outline" className="overflow-hidden rounded-sm whitespace-nowrap">
+          {/* Имя узла с нашим флагом — см. connection-item.tsx. */}
+          <ProxyName name={proxy} size={12} />
+        </Badge>
+      </div>
     </div>
   )
 }

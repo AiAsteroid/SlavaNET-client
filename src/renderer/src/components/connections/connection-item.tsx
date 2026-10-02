@@ -3,6 +3,7 @@ import ProxyName from '@renderer/components/base/proxy-name'
 import { useProcessIcon, useProcessAppName } from '@renderer/store/icons-store'
 import { calcTraffic } from '@renderer/utils/calc'
 import dayjs from 'dayjs'
+import { cn } from '@renderer/lib/utils'
 import React, { memo, useCallback, useEffect, useMemo, useState } from 'react'
 import { Trash2, X } from 'lucide-react'
 
@@ -99,17 +100,15 @@ const ConnectionItemComponent: React.FC<Props> = ({
   }, [close, info.id])
 
   return (
-    <div className="px-2 pb-2" style={{ height: 72 }}>
+    <div style={{ height: 72 }}>
       <div
-        className={`
-          w-full h-full flex items-center cursor-pointer rounded-xl border
-          transition-all duration-200 ease-out
-          ${
-            info.isActive
-              ? 'border-stroke-power-on/30 bg-linear-to-r from-gradient-start-power-on/[0.06] to-card/40 hover:border-stroke-power-on/50 shadow-sm'
-              : 'border-border bg-card/40 hover:bg-accent/50'
-          }
-        `}
+        className={cn(
+          'flex h-full w-full cursor-pointer items-center',
+          'border-b-[length:var(--hairline)] border-stroke transition-colors',
+          info.isActive
+            ? 'bg-[color:color-mix(in_oklab,var(--success)_10%,var(--card))] hover:bg-[color:color-mix(in_oklab,var(--success)_16%,var(--card))]'
+            : 'bg-card hover:bg-accent/50'
+        )}
         onClick={handleCardPress}
       >
         <div className="w-full flex items-center">

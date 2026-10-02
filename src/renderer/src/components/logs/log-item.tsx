@@ -1,5 +1,5 @@
-import { Card, CardContent, CardHeader } from '@renderer/components/ui/card'
 import React from 'react'
+import { cn } from '@renderer/lib/utils'
 
 const colorMap = {
   error: 'text-destructive',
@@ -7,19 +7,32 @@ const colorMap = {
   info: 'text-primary',
   debug: 'text-muted-foreground'
 }
+
+// Строка журнала.
+//
+// Карточки на каждой строке больше нет: в единой системе карточка — это
+// ГРУППА строк, а не строка. Отдельная карточка на каждую запись давала
+// двадцать рамок на экран и ощущение, что лог собран из несвязанных кусков.
+// Теперь строки лежат на одной поверхности, разделённые волоском, и список
+// читается как список.
+//
+// ⚠️ Волосок снизу у КАЖДОЙ строки, а не «у всех, кроме последней». Список
+// виртуализован: какая строка последняя, во время отрисовки неизвестно, а
+// лишний волосок перед подвалом в конце списка незаметен.
 const LogItem: React.FC<ControllerLog & { index: number }> = (props) => {
-  const { type, payload, time, index } = props
+  const { type, payload, time } = props
   return (
-    <div className={`select-text px-2 pb-2 ${index === 0 ? 'pt-2' : ''}`}>
-      <Card className="gap-0 py-0">
-        <CardHeader className="pb-0 pt-1 px-3 gap-1">
-          <div className={`mr-2 text-lg font-bold ${colorMap[type]}`}>
-            {props.type.toUpperCase()}
-          </div>
-          <small className="text-muted-foreground">{time}</small>
-        </CardHeader>
-        <CardContent className="flag-emoji pt-0 text-sm px-3 pb-2">{payload}</CardContent>
-      </Card>
+    <div className="select-text border-b-[length:var(--hairline)] border-stroke bg-card px-3 py-2">
+      <div className="flex items-baseline gap-2">
+        <span className={cn('text-xs font-semibold uppercase tracking-wide', colorMap[type])}>
+          {type}
+        </span>
+        <span className="text-xs tabular-nums text-muted-foreground">{time}</span>
+      </div>
+      {/* Тело записи — произвольный текст, в нём встречаются эмодзи-флаги, и
+          подменить их картинкой нельзя: имя узла здесь не отдельное поле.
+          Класс flag-emoji оставляет шрифтовую подмену. */}
+      <div className="flag-emoji mt-0.5 text-sm break-words">{payload}</div>
     </div>
   )
 }

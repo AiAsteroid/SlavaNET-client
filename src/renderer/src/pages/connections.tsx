@@ -766,7 +766,7 @@ const Connections: React.FC = () => {
           )}
         </div>
       </div>
-      <div className="mt-px mb-2 min-h-0 flex-1">
+      <div className="mx-4 mt-px mb-2 min-h-0 flex-1 overflow-hidden rounded-xl">
         {isProcessListView ? (
           filteredProcessGroups.length === 0 ? (
             processesEmptyState

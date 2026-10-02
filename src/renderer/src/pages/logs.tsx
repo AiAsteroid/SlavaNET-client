@@ -96,7 +96,7 @@ const Logs: React.FC = () => {
         </div>
         <Separator className="mx-2" />
       </div>
-      <div className="mt-px min-h-0 flex-1">
+      <div className="mx-4 mt-px min-h-0 flex-1 overflow-hidden rounded-xl">
         <Virtuoso
           ref={virtuosoRef}
           {...listScroll}
