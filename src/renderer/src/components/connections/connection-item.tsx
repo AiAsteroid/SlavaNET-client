@@ -138,7 +138,7 @@ const ConnectionItemComponent: React.FC<Props> = ({
               <Button
                 variant="ghost"
                 size="icon-sm"
-                className={`size-7 shrink-0 ${info.isActive ? 'text-amber-500 hover:text-amber-600 hover:bg-amber-500/10' : 'text-destructive hover:text-destructive hover:bg-destructive/10'}`}
+                className={`size-7 shrink-0 ${info.isActive ? 'text-warning hover:bg-warning/10' : 'text-destructive hover:bg-destructive/10'}`}
                 onClick={(e) => {
                   e.stopPropagation()
                   handleClose()

@@ -123,7 +123,7 @@ const CopyableValue: React.FC<CopyableValueProps> = ({ label, value, displayName
             onClick={handleSimpleCopy}
           >
             {copied ? (
-              <Check className="text-xs text-green-500" />
+              <Check className="text-xs text-success" />
             ) : (
               <Copy className="text-xs text-muted-foreground" />
             )}

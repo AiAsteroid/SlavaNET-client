@@ -98,8 +98,10 @@ const ProxyItem: React.FC<Props> = React.memo((props) => {
       onClick={() => onSelect(group.name, proxy.name)}
       className={cn(
         'w-full gap-0 py-0 rounded-lg cursor-pointer transition-all duration-150 relative overflow-hidden',
+        // Закреплённый узел — состояние «внимание»: переключение групп его не
+        // трогает. Это ровно смысл --warning, отдельный янтарный тут не нужен.
         fixed
-          ? 'bg-amber-500/8 hover:bg-amber-500/12 border-amber-500/40 shadow-sm shadow-amber-500/10'
+          ? 'bg-warning/10 hover:bg-warning/15 border-warning/40'
           : selected
             ? 'bg-primary/10 hover:bg-primary/15 border-primary/30 shadow-sm shadow-primary/10'
             : 'hover:bg-accent/50'
@@ -129,7 +131,7 @@ const ProxyItem: React.FC<Props> = React.memo((props) => {
                       await mihomoUnfixedProxy(group.name)
                       mutateProxies()
                     }}
-                    className="h-6 w-6 min-w-6 p-0 text-amber-500 hover:text-amber-600 opacity-60 hover:opacity-100"
+                    className="h-6 w-6 min-w-6 p-0 text-warning opacity-60 hover:opacity-100"
                   >
                     <MapPin className="text-xs" />
                   </Button>
@@ -168,7 +170,7 @@ const ProxyItem: React.FC<Props> = React.memo((props) => {
                       await mihomoUnfixedProxy(group.name)
                       mutateProxies()
                     }}
-                    className="h-6 w-6 min-w-6 p-0 text-amber-500 hover:text-amber-600 opacity-60 hover:opacity-100"
+                    className="h-6 w-6 min-w-6 p-0 text-warning opacity-60 hover:opacity-100"
                   >
                     <MapPin className="text-xs" />
                   </Button>

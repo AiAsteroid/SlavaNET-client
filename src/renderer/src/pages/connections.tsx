@@ -528,10 +528,10 @@ const Connections: React.FC = () => {
       header={
         <div className="flex items-center gap-1">
           <div className="flex h-8 items-center gap-1 whitespace-nowrap">
-            <span className="px-1 text-gray-400">
+            <span className="px-1 text-muted-foreground">
               {'\u2191'} {calcTraffic(info.uploadTotal)}
             </span>
-            <span className="px-1 text-gray-400">
+            <span className="px-1 text-muted-foreground">
               {'\u2193'} {calcTraffic(info.downloadTotal)}
             </span>
           </div>

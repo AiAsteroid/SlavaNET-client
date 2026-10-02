@@ -38,16 +38,11 @@ import {
   Zap
 } from 'lucide-react'
 
-const groupTypeColor: Record<string, string> = {
-  Selector: 'border-blue-500/40 bg-blue-500/8 text-blue-600 dark:text-blue-400 dark:border-blue-400/40',
-  URLTest:
-    'border-emerald-500/40 bg-emerald-500/8 text-emerald-600 dark:text-emerald-400 dark:border-emerald-400/40',
-  Fallback:
-    'border-amber-500/40 bg-amber-500/8 text-amber-600 dark:text-amber-400 dark:border-amber-400/40',
-  LoadBalance:
-    'border-violet-500/40 bg-violet-500/8 text-violet-600 dark:text-violet-400 dark:border-violet-400/40',
-  Relay: 'border-rose-500/40 bg-rose-500/8 text-rose-600 dark:text-rose-400 dark:border-rose-400/40'
-}
+// Тип группы раньше красили в пять произвольных оттенков — синий, изумрудный,
+// янтарный, фиолетовый, розовый. Это не состояния, а названия, и они написаны
+// словами прямо на плашке: цвет ничего не добавлял, зато вводил в палитру пять
+// красок, которых в ней нет, и спорил со смыслом зелёного и жёлтого.
+const GROUP_TYPE_BADGE = 'border-stroke bg-secondary text-muted-foreground'
 
 const groupTypeIcon: Record<string, React.ReactNode> = {
   Selector: <MousePointerClick className="size-4" />,
@@ -355,8 +350,6 @@ const Proxies: React.FC = () => {
       const group = groups[index]
       if (!group) return <div>Never See This</div>
 
-      const typeColorClass =
-        groupTypeColor[group.type] || 'border-muted bg-muted text-muted-foreground'
       const isExpanded = groupCounts[index] > 0
       const showMeta = groupDisplayLayout !== 'hidden'
 
@@ -392,7 +385,7 @@ const Proxies: React.FC = () => {
                       />
                     </Avatar>
                   ) : (
-                    <div className={cn('flex items-center justify-center shrink-0 size-9 rounded-md', typeColorClass)}>
+                    <div className={cn('flex items-center justify-center shrink-0 size-9 rounded-md', GROUP_TYPE_BADGE)}>
                       {groupTypeIcon[group.type] || <Zap className="size-4" />}
                     </div>
                   )}
@@ -406,7 +399,7 @@ const Proxies: React.FC = () => {
                       {showMeta && (
                         <Badge
                           variant="ghost"
-                          className={cn('text-[10px] px-1.5 py-0 h-4 rounded font-semibold uppercase tracking-wider shrink-0', typeColorClass)}
+                          className={cn('text-[10px] px-1.5 py-0 h-4 rounded font-semibold uppercase tracking-wider shrink-0', GROUP_TYPE_BADGE)}
                         >
                           {group.type}
                         </Badge>
