@@ -8,15 +8,28 @@ import { useTranslation } from 'react-i18next'
 import { Fragment, useEffect, useMemo, useState } from 'react'
 import Viewer from './viewer'
 import useSWR from 'swr'
-import SettingCard from '../base/base-setting-card'
-import SettingItem from '../base/base-setting-item'
-import { Button } from '@renderer/components/ui/button'
-import { Badge } from '@renderer/components/ui/badge'
+import { Group, Row } from '@renderer/components/shell/list-group'
 import dayjs from 'dayjs'
 import { calcTraffic } from '@renderer/utils/calc'
 import { getHash } from '@renderer/utils/hash'
 import { FilePenLine, FileText, RefreshCcw } from 'lucide-react'
 
+// Провайдеры прокси на общем наборе строк (components/shell/list-group).
+// Разложены так же, как провайдеры правил (rule-provider.tsx): строка самого
+// провайдера с нажатием «посмотреть/править», под ней строка «Обновить» со
+// спиннером. Два безымянных значка 24×24 в правом углу строки ушли.
+//
+// ⚠️ Строка с трафиком подписки — НЕ Row: Row — это кнопка, а трафик и срок
+// читают, а не нажимают, и фокусируемая строка без действия обманывает мышь и
+// клавиатуру. Геометрию строки набора повторяем вручную — так же сделано в
+// карточке устройства (components/cabinet/device-sheet.tsx:432).
+//
+// ⚠️ Трафик оставлен отдельной строкой, а не дописан в подпись провайдера: при
+// минимальной ширине окна (420px) подпись обрезается, и «12 ГБ / 100 ГБ» с
+// датой окончания просто исчезали бы из виду.
+//
+// ⚠️ Заголовок группы — существующий ключ resources.proxyProvider: новых
+// ключей перевода здесь не появляется.
 const ProxyProvider: React.FC = () => {
   const { t } = useTranslation()
   const [showDetails, setShowDetails] = useState({
@@ -92,7 +105,7 @@ const ProxyProvider: React.FC = () => {
   }
 
   return (
-    <SettingCard>
+    <>
       {showDetails.show && (
         <Viewer
           path={showDetails.path}
@@ -104,88 +117,65 @@ const ProxyProvider: React.FC = () => {
           }
         />
       )}
-      <SettingItem title={t('resources.proxyProvider')} divider>
-        <Button
-          size="sm"
+      <Group title={t('resources.proxyProvider')}>
+        <Row
+          icon={RefreshCcw}
+          label={t('resources.updateAll')}
+          trailing="chevron"
           onClick={() => {
             providers.forEach((provider, index) => {
               onUpdate(provider.name, index)
             })
           }}
-        >
-          {t('resources.updateAll')}
-        </Button>
-      </SettingItem>
-      {providers.map((provider, index) => (
-        <Fragment key={provider.name}>
-          <SettingItem
-            title={provider.name}
-            actions={
-              <Badge className="ml-2">
-                {provider.proxies?.length || 0}
-              </Badge>
-            }
-            divider={!provider.subscriptionInfo && index !== providers.length - 1}
-          >
-            <div className="flex h-8 leading-8 text-foreground-500">
-              <div>{dayjs(provider.updatedAt).fromNow()}</div>
-              <Button
-                title={
-                  provider.vehicleType == 'File' ? t('resources.edit') : t('resources.view')
-                }
-                className="ml-2"
-                size="icon-sm"
-                variant="ghost"
-                onClick={() => {
-                  setShowDetails({
-                    show: false,
-                    privderType: 'proxy-providers',
-                    path: provider.name,
-                    type: provider.vehicleType,
-                    title: provider.name
-                  })
-                }}
-              >
-                {provider.vehicleType == 'File' ? (
-                  <FilePenLine className={`text-lg`} />
-                ) : (
-                  <FileText className={`text-lg`} />
-                )}
-              </Button>
-              <Button
-                title={t('common.update')}
-                className="ml-2"
-                size="icon-sm"
-                variant="ghost"
-                onClick={() => {
-                  onUpdate(provider.name, index)
-                }}
-              >
-                <RefreshCcw className={`text-lg ${updating[index] ? 'animate-spin' : ''}`} />
-              </Button>
-            </div>
-          </SettingItem>
-          {provider.subscriptionInfo && (
-            <SettingItem
-              divider={index !== providers.length - 1}
-              title={
-                <div className="text-foreground-500">
+        />
+        {providers.map((provider, index) => (
+          <Fragment key={provider.name}>
+            <Row
+              icon={provider.vehicleType == 'File' ? FilePenLine : FileText}
+              label={provider.name}
+              // Сколько узлов и откуда они берутся — раньше это были плашка у
+              // имени и строка ниже.
+              sub={[provider.proxies?.length || 0, provider.vehicleType].join(' · ')}
+              value={dayjs(provider.updatedAt).fromNow()}
+              trailing="chevron"
+              title={provider.vehicleType == 'File' ? t('resources.edit') : t('resources.view')}
+              onClick={() => {
+                setShowDetails({
+                  show: false,
+                  privderType: 'proxy-providers',
+                  path: provider.name,
+                  type: provider.vehicleType,
+                  title: provider.name
+                })
+              }}
+            />
+            {provider.subscriptionInfo && (
+              <div className="flex min-h-10 items-center gap-2.5 px-3 py-2">
+                <span className="min-w-0 flex-1 truncate text-sm text-muted-foreground">
                   {`${calcTraffic(
                     provider.subscriptionInfo.Upload + provider.subscriptionInfo.Download
                   )} / ${calcTraffic(provider.subscriptionInfo.Total)}`}
-                </div>
-              }
-            >
-              <div className="h-8 leading-8 text-foreground-500">
-                {provider.subscriptionInfo.Expire
-                  ? dayjs.unix(provider.subscriptionInfo.Expire).format('YYYY-MM-DD')
-                  : t('profile.longTermValid')}
+                </span>
+                <span className="max-w-[55%] shrink-0 truncate text-sm text-muted-foreground">
+                  {provider.subscriptionInfo.Expire
+                    ? dayjs.unix(provider.subscriptionInfo.Expire).format('YYYY-MM-DD')
+                    : t('profile.longTermValid')}
+                </span>
               </div>
-            </SettingItem>
-          )}
-        </Fragment>
-      ))}
-    </SettingCard>
+            )}
+            <Row
+              icon={RefreshCcw}
+              label={t('common.update')}
+              busy={updating[index]}
+              trailing="chevron"
+              onClick={() => {
+                onUpdate(provider.name, index)
+              }}
+            />
+          </Fragment>
+        ))}
+      </Group>
+    </>
   )
 }
 

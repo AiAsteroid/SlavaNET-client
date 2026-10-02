@@ -1,3 +1,15 @@
+import React from 'react'
+import {
+  ArrowDownWideNarrow,
+  ChevronsDownUp,
+  Gauge,
+  Globe,
+  ListTree,
+  Table2,
+  TableOfContents,
+  Timer,
+  Unplug
+} from 'lucide-react'
 import {
   Dialog,
   DialogClose,
@@ -7,26 +19,39 @@ import {
   DialogTitle
 } from '@renderer/components/ui/dialog'
 import { Button } from '@renderer/components/ui/button'
-import { Switch } from '@renderer/components/ui/switch'
-import { Input } from '@renderer/components/ui/input'
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from '@renderer/components/ui/select'
-import { Tabs, TabsList, TabsTrigger } from '@renderer/components/ui/tabs'
-import React, { useState, useEffect } from 'react'
-import SettingItem from '../base/base-setting-item'
+  FieldRow,
+  Group,
+  SegmentRow,
+  SelectRow,
+  SwitchRow
+} from '@renderer/components/shell/list-group'
 import { useAppConfig } from '@renderer/hooks/use-app-config'
-import debounce from '@renderer/utils/debounce'
 import { t } from 'i18next'
 
 interface Props {
   onClose: () => void
 }
 
+// Настройки групп прокси на общем наборе строк
+// (components/shell/list-group). Было: девять строк прежнего вида в одной куче,
+// разделённых линиями, и четыре разных контрола — селект, три полосы вкладок,
+// два переключателя и три поля разной ширины. Стало три группы по смыслу:
+// как показывать (4), что делать при переключении (2) и тест задержки (3).
+// Все девять настроек на месте.
+//
+// ⚠️ У групп surface="muted" — иначе их не видно. Поверхность диалога это
+// bg-card/50 поверх затемнения (ui/dialog.tsx), и в тёмной теме она
+// складывается почти ровно в цвет bg-card. Подробнее — в list-group.tsx.
+//
+// ⚠️ Заголовков у групп нет намеренно: подходящих ключей перевода в локалях
+// не нашлось, а новых здесь не заводят — локали правит другой человек.
+//
+// ⚠️ Поля больше не пишут в конфиг на каждую нажатую клавишу. URL теста
+// задержки сохранялся через debounce на 500мс (и держал для этого свой
+// черновик в состоянии), а два числовых поля писали прямо из onChange —
+// очищенное поле уезжало в конфиг как NaN. Теперь правка применяется по уходу
+// из поля и по Enter, черновик держит сам FieldRow.
 const ProxySettingModal: React.FC<Props> = (props) => {
   const { onClose } = props
   const { appConfig, patchAppConfig } = useAppConfig()
@@ -43,16 +68,6 @@ const ProxySettingModal: React.FC<Props> = (props) => {
     delayTestTimeout
   } = appConfig || {}
 
-  const [url, setUrl] = useState(delayTestUrl ?? '')
-
-  const setUrlDebounce = debounce((v: string) => {
-    patchAppConfig({ delayTestUrl: v })
-  }, 500)
-
-  useEffect(() => {
-    setUrl(delayTestUrl ?? '')
-  }, [delayTestUrl])
-
   return (
     <Dialog
       open={true}
@@ -67,124 +82,123 @@ const ProxySettingModal: React.FC<Props> = (props) => {
         <DialogHeader className="pb-0">
           <DialogTitle>{t('pages.proxies.proxyGroupSettings')}</DialogTitle>
         </DialogHeader>
-        <div className="py-2 flex flex-col gap-1 overflow-y-auto min-h-0">
-          <SettingItem title={t('proxies.proxyNodeColumns')} divider>
-            <Select
+        {/* Отступы между шапкой, телом и подвалом даёт сам диалог (gap-4),
+            поэтому у последней группы собственный нижний отступ снимаем. */}
+        <div className="overflow-y-auto min-h-0 [&>section:last-child]:mb-0">
+          <Group surface="muted">
+            <SelectRow
+              icon={Table2}
+              label={t('proxies.proxyNodeColumns')}
               value={proxyCols}
-              onValueChange={async (value) => {
-                await patchAppConfig({ proxyCols: value as 'auto' | '1' | '2' | '3' | '4' })
+              options={[
+                { value: 'auto', label: t('proxies.proxyColsAuto') },
+                { value: '1', label: t('proxies.proxyCols1') },
+                { value: '2', label: t('proxies.proxyCols2') },
+                { value: '3', label: t('proxies.proxyCols3') },
+                { value: '4', label: t('proxies.proxyCols4') }
+              ]}
+              onChange={async (value) => {
+                await patchAppConfig({ proxyCols: value })
               }}
-            >
-              <SelectTrigger size="sm" className="w-[150px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="auto">{t('proxies.proxyColsAuto')}</SelectItem>
-                <SelectItem value="1">{t('proxies.proxyCols1')}</SelectItem>
-                <SelectItem value="2">{t('proxies.proxyCols2')}</SelectItem>
-                <SelectItem value="3">{t('proxies.proxyCols3')}</SelectItem>
-                <SelectItem value="4">{t('proxies.proxyCols4')}</SelectItem>
-              </SelectContent>
-            </Select>
-          </SettingItem>
-          <SettingItem title={t('proxies.nodeSortMethod')} divider>
-            <Tabs
+            />
+            <SegmentRow
+              icon={ArrowDownWideNarrow}
+              label={t('proxies.nodeSortMethod')}
               value={proxyDisplayOrder}
-              onValueChange={async (value) => {
-                await patchAppConfig({
-                  proxyDisplayOrder: value as 'default' | 'delay' | 'name'
-                })
+              options={[
+                { value: 'default', label: t('proxies.sortDefault') },
+                { value: 'delay', label: t('proxies.sortDelay') },
+                { value: 'name', label: t('proxies.sortName') }
+              ]}
+              onChange={async (value) => {
+                await patchAppConfig({ proxyDisplayOrder: value })
               }}
-            >
-              <TabsList>
-                <TabsTrigger value="default">{t('proxies.sortDefault')}</TabsTrigger>
-                <TabsTrigger value="delay">{t('proxies.sortDelay')}</TabsTrigger>
-                <TabsTrigger value="name">{t('proxies.sortName')}</TabsTrigger>
-              </TabsList>
-            </Tabs>
-          </SettingItem>
-          <SettingItem title={t('proxies.proxyGroupDetails')} divider>
-            <Tabs
+            />
+            <SegmentRow
+              icon={ListTree}
+              label={t('proxies.proxyGroupDetails')}
               value={groupDisplayLayout}
-              onValueChange={async (value) => {
-                await patchAppConfig({
-                  groupDisplayLayout: value as 'hidden' | 'single' | 'double'
-                })
+              options={[
+                { value: 'hidden', label: t('proxies.displayHidden') },
+                { value: 'single', label: t('proxies.displaySingle') },
+                { value: 'double', label: t('proxies.displayDouble') }
+              ]}
+              onChange={async (value) => {
+                await patchAppConfig({ groupDisplayLayout: value })
               }}
-            >
-              <TabsList>
-                <TabsTrigger value="hidden">{t('proxies.displayHidden')}</TabsTrigger>
-                <TabsTrigger value="single">{t('proxies.displaySingle')}</TabsTrigger>
-                <TabsTrigger value="double">{t('proxies.displayDouble')}</TabsTrigger>
-              </TabsList>
-            </Tabs>
-          </SettingItem>
-          <SettingItem title={t('proxies.proxyNodeDetails')} divider>
-            <Tabs
+            />
+            <SegmentRow
+              icon={TableOfContents}
+              label={t('proxies.proxyNodeDetails')}
               value={proxyDisplayLayout}
-              onValueChange={async (value) => {
-                await patchAppConfig({
-                  proxyDisplayLayout: value as 'hidden' | 'single' | 'double'
-                })
+              options={[
+                { value: 'hidden', label: t('proxies.displayHidden') },
+                { value: 'single', label: t('proxies.displaySingle') },
+                { value: 'double', label: t('proxies.displayDouble') }
+              ]}
+              onChange={async (value) => {
+                await patchAppConfig({ proxyDisplayLayout: value })
               }}
-            >
-              <TabsList>
-                <TabsTrigger value="hidden">{t('proxies.displayHidden')}</TabsTrigger>
-                <TabsTrigger value="single">{t('proxies.displaySingle')}</TabsTrigger>
-                <TabsTrigger value="double">{t('proxies.displayDouble')}</TabsTrigger>
-              </TabsList>
-            </Tabs>
-          </SettingItem>
-          <SettingItem title={t('proxies.disconnectOnSwitch')} divider>
-            <Switch
+            />
+          </Group>
+
+          <Group surface="muted">
+            <SwitchRow
+              icon={Unplug}
+              label={t('proxies.disconnectOnSwitch')}
               checked={autoCloseConnection}
               onCheckedChange={(value) => {
                 patchAppConfig({ autoCloseConnection: value })
               }}
             />
-          </SettingItem>
-          <SettingItem title={t('proxies.expandProxyGroups')} divider>
-            <Switch
+            <SwitchRow
+              icon={ChevronsDownUp}
+              label={t('proxies.expandProxyGroups')}
               checked={expandProxyGroups}
               onCheckedChange={(value) => {
                 patchAppConfig({ expandProxyGroups: value })
               }}
             />
-          </SettingItem>
-          <SettingItem title={t('proxies.delayTestUrl')} divider>
-            <Input
-              className="w-[60%] h-8"
-              value={url}
+          </Group>
+
+          <Group surface="muted">
+            <FieldRow
+              icon={Globe}
+              label={t('proxies.delayTestUrl')}
+              value={delayTestUrl ?? ''}
               placeholder={t('proxies.delayTestUrlPlaceholder')}
-              onChange={(event) => {
-                const value = event.target.value
-                setUrl(value)
-                setUrlDebounce(value)
-              }}
+              width={240}
+              onCommit={(next) => patchAppConfig({ delayTestUrl: next })}
             />
-          </SettingItem>
-          <SettingItem title={t('proxies.delayTestConcurrency')} divider>
-            <Input
-              type="number"
-              className="w-[100px] h-8"
+            <FieldRow
+              icon={Gauge}
+              label={t('proxies.delayTestConcurrency')}
               value={delayTestConcurrency?.toString() ?? ''}
               placeholder={t('proxies.delayTestConcurrencyPlaceholder')}
-              onChange={(event) => {
-                patchAppConfig({ delayTestConcurrency: parseInt(event.target.value) })
+              width={84}
+              inputMode="numeric"
+              onCommit={(next) => {
+                let num = parseInt(next)
+                // Пустое поле раньше уезжало в конфиг как NaN. Возвращаем его
+                // к тому значению, которое обещает подсказка в поле.
+                if (isNaN(num)) num = 50
+                return patchAppConfig({ delayTestConcurrency: num })
               }}
             />
-          </SettingItem>
-          <SettingItem title={t('proxies.delayTestTimeout')}>
-            <Input
-              type="number"
-              className="w-[100px] h-8"
+            <FieldRow
+              icon={Timer}
+              label={t('proxies.delayTestTimeout')}
               value={delayTestTimeout?.toString() ?? ''}
               placeholder={t('proxies.delayTestTimeoutPlaceholder')}
-              onChange={(event) => {
-                patchAppConfig({ delayTestTimeout: parseInt(event.target.value) })
+              width={84}
+              inputMode="numeric"
+              onCommit={(next) => {
+                let num = parseInt(next)
+                if (isNaN(num)) num = 5000
+                return patchAppConfig({ delayTestTimeout: num })
               }}
             />
-          </SettingItem>
+          </Group>
         </div>
         <DialogFooter>
           <DialogClose asChild>

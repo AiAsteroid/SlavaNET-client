@@ -1,15 +1,25 @@
 import { toast } from 'sonner'
+import { Globe, Route, ScanSearch, Shield, Zap } from 'lucide-react'
 import { Button } from '@renderer/components/ui/button'
-import { Input } from '@renderer/components/ui/input'
-import { Switch } from '@renderer/components/ui/switch'
 import BasePage from '@renderer/components/base/base-page'
-import SettingCard from '@renderer/components/base/base-setting-card'
-import SettingItem from '@renderer/components/base/base-setting-item'
 import EditableList from '@renderer/components/base/base-list-editor'
+import { FieldRow, Group, SwitchRow } from '@renderer/components/shell/list-group'
 import { useControledMihomoConfig } from '@renderer/hooks/use-controled-mihomo-config'
 import React, { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
+// Экран определения доменов на общем наборе строк
+// (components/shell/list-group). Было: одна карточка старого вида на десять
+// настроек — три переключателя, три поля портов и четыре списка-редактора
+// подряд, без заголовков.
+//
+// ⚠️ Кнопка «Сохранить» в ШАПКЕ осталась: правка собирается в черновик и
+// уходит ядру целиком, а не по символу. Поля портов применяют правку в
+// черновик по уходу и по Enter (FieldRow) — отдельных «подтвердить» рядом с
+// полем здесь не было и не появилось.
+//
+// ⚠️ Заголовки групп у списков — ТЕ ЖЕ ключи, которыми списки были подписаны
+// раньше (pages.sniffer.*). Новых ключей нет.
 const Sniffer: React.FC = () => {
   const { t } = useTranslation()
   const { controledMihomoConfig, patchControledMihomoConfig } = useControledMihomoConfig()
@@ -95,7 +105,14 @@ const Sniffer: React.FC = () => {
                   'override-destination': values.overrideDestination,
                   sniff: values.sniff,
                   'skip-domain': values.skipDomain,
-                  'force-domain': values.forceDomain
+                  'force-domain': values.forceDomain,
+                  // ⚠️ Эти два списка редактировались, но в ядро не уезжали:
+                  // кнопка «Сохранить» их просто не клала в patch. Человек
+                  // правил адреса, нажимал сохранить, и правка пропадала без
+                  // единого сообщения. Граблю привёз upstream, она была тут и
+                  // до перевода на набор строк (git show HEAD~:…:97).
+                  'skip-dst-address': values.skipDstAddress,
+                  'skip-src-address': values.skipSrcAddress
                 }
               })
             }
@@ -105,9 +122,11 @@ const Sniffer: React.FC = () => {
         )
       }
     >
-      <SettingCard>
-        <SettingItem title={t('pages.sniffer.overrideConnectionAddress')} divider>
-          <Switch
+      <div className="px-4 pt-1">
+        <Group>
+          <SwitchRow
+            icon={Route}
+            label={t('pages.sniffer.overrideConnectionAddress')}
             checked={values.overrideDestination}
             onCheckedChange={(value) => {
               setValues({
@@ -124,73 +143,94 @@ const Sniffer: React.FC = () => {
               })
             }}
           />
-        </SettingItem>
-        <SettingItem title={t('pages.sniffer.sniffRealIPMapping')} divider>
-          <Switch
+          <SwitchRow
+            icon={ScanSearch}
+            label={t('pages.sniffer.sniffRealIPMapping')}
             checked={values.forceDNSMapping}
             onCheckedChange={(value) => {
               setValues({ ...values, forceDNSMapping: value })
             }}
           />
-        </SettingItem>
-        <SettingItem title={t('pages.sniffer.sniffUnmappedIP')} divider>
-          <Switch
+          <SwitchRow
+            icon={ScanSearch}
+            label={t('pages.sniffer.sniffUnmappedIP')}
             checked={values.parsePureIP}
             onCheckedChange={(value) => {
               setValues({ ...values, parsePureIP: value })
             }}
           />
-        </SettingItem>
-        <SettingItem title={t('pages.sniffer.httpPortSniffer')} divider>
-          <Input
-            className="w-[50%]"
+          {/* Порты применяются по уходу из поля и по Enter: ядру всё равно
+              уходит весь черновик по кнопке в шапке. */}
+          <FieldRow
+            icon={Globe}
+            label={t('pages.sniffer.httpPortSniffer')}
+            value={(values.sniff.HTTP?.ports ?? []).join(',')}
+            width={140}
             placeholder={t('pages.sniffer.portPlaceholder')}
-            value={values.sniff.HTTP?.ports.join(',')}
-            onChange={(event) => handleSniffPortChange('HTTP', event.target.value)}
+            onCommit={(next) => handleSniffPortChange('HTTP', next)}
           />
-        </SettingItem>
-        <SettingItem title={t('pages.sniffer.tlsPortSniffer')} divider>
-          <Input
-            className="w-[50%]"
+          <FieldRow
+            icon={Shield}
+            label={t('pages.sniffer.tlsPortSniffer')}
+            value={(values.sniff.TLS?.ports ?? []).join(',')}
+            width={140}
             placeholder={t('pages.sniffer.portPlaceholder')}
-            value={values.sniff.TLS?.ports.join(',')}
-            onChange={(event) => handleSniffPortChange('TLS', event.target.value)}
+            onCommit={(next) => handleSniffPortChange('TLS', next)}
           />
-        </SettingItem>
-        <SettingItem title={t('pages.sniffer.quicPortSniffer')} divider>
-          <Input
-            className="w-[50%]"
+          <FieldRow
+            icon={Zap}
+            label={t('pages.sniffer.quicPortSniffer')}
+            value={(values.sniff.QUIC?.ports ?? []).join(',')}
+            width={140}
             placeholder={t('pages.sniffer.portPlaceholder')}
-            value={values.sniff.QUIC?.ports.join(',')}
-            onChange={(event) => handleSniffPortChange('QUIC', event.target.value)}
+            onCommit={(next) => handleSniffPortChange('QUIC', next)}
           />
-        </SettingItem>
-        <EditableList
-          title={t('pages.sniffer.skipDomainSniffing')}
-          items={values.skipDomain}
-          onChange={(list) => setValues({ ...values, skipDomain: list as string[] })}
-          placeholder={t('pages.sniffer.examplePush')}
-        />
-        <EditableList
-          title={t('pages.sniffer.forceDomainSniffing')}
-          items={values.forceDomain}
-          onChange={(list) => setValues({ ...values, forceDomain: list as string[] })}
-          placeholder={t('pages.sniffer.exampleDomain')}
-        />
-        <EditableList
-          title={t('pages.sniffer.skipDestAddressSniffing')}
-          items={values.skipDstAddress}
-          onChange={(list) => setValues({ ...values, skipDstAddress: list as string[] })}
-          placeholder={t('pages.sniffer.exampleCIDR')}
-        />
-        <EditableList
-          title={t('pages.sniffer.skipSourceAddressSniffing')}
-          items={values.skipSrcAddress}
-          onChange={(list) => setValues({ ...values, skipSrcAddress: list as string[] })}
-          placeholder={t('pages.sniffer.exampleCIDR')}
-          divider={false}
-        />
-      </SettingCard>
+        </Group>
+
+        <Group title={t('pages.sniffer.skipDomainSniffing')}>
+          <div className="px-3 py-2">
+            <EditableList
+              items={values.skipDomain}
+              onChange={(list) => setValues({ ...values, skipDomain: list as string[] })}
+              placeholder={t('pages.sniffer.examplePush')}
+              divider={false}
+            />
+          </div>
+        </Group>
+
+        <Group title={t('pages.sniffer.forceDomainSniffing')}>
+          <div className="px-3 py-2">
+            <EditableList
+              items={values.forceDomain}
+              onChange={(list) => setValues({ ...values, forceDomain: list as string[] })}
+              placeholder={t('pages.sniffer.exampleDomain')}
+              divider={false}
+            />
+          </div>
+        </Group>
+
+        <Group title={t('pages.sniffer.skipDestAddressSniffing')}>
+          <div className="px-3 py-2">
+            <EditableList
+              items={values.skipDstAddress}
+              onChange={(list) => setValues({ ...values, skipDstAddress: list as string[] })}
+              placeholder={t('pages.sniffer.exampleCIDR')}
+              divider={false}
+            />
+          </div>
+        </Group>
+
+        <Group title={t('pages.sniffer.skipSourceAddressSniffing')}>
+          <div className="px-3 py-2">
+            <EditableList
+              items={values.skipSrcAddress}
+              onChange={(list) => setValues({ ...values, skipSrcAddress: list as string[] })}
+              placeholder={t('pages.sniffer.exampleCIDR')}
+              divider={false}
+            />
+          </div>
+        </Group>
+      </div>
     </BasePage>
   )
 }

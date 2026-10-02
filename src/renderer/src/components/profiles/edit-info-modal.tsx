@@ -10,10 +10,14 @@ import {
 } from '@renderer/components/ui/dialog'
 import { Button } from '@renderer/components/ui/button'
 import { Input } from '@renderer/components/ui/input'
-import { Switch } from '@renderer/components/ui/switch'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
 import { cn } from '@renderer/lib/utils'
-import SettingItem from '../base/base-setting-item'
+import {
+  FieldRow,
+  Group,
+  SegmentRow,
+  SwitchRow
+} from '@renderer/components/shell/list-group'
 import { Spinner } from '@renderer/components/ui/spinner'
 import { getFilePath, readTextFile, mihomoHotReloadConfig } from '@renderer/utils/ipc'
 import { useTranslation } from 'react-i18next'
@@ -23,7 +27,14 @@ import {
   FileUp,
   FilePlus2,
   Check,
-  MessageCircleQuestionMark
+  FileText,
+  Globe,
+  MonitorSmartphone,
+  Network,
+  RefreshCw,
+  Shield,
+  Tag,
+  Timer
 } from 'lucide-react'
 
 interface Props {
@@ -42,6 +53,28 @@ function isValidUrl(url: string): boolean {
   }
 }
 
+// Окно профиля на общем наборе строк (components/shell/list-group). Было: три
+// самодельные карточки (rounded-xl border bg-accent/20) со строками прежнего
+// вида внутри, и в каждой свой контрол — поле, переключатель, пара
+// кнопок «Удалённый/Локальный». Стало: те же строки, что на экране настроек.
+//
+// Настройки все на месте: при импорте семь (тип, имя, UA, проверка формата,
+// обновление через прокси, автообновление, интервал), при правке столько же —
+// имя и адрес подписки в первой группе, остальные пять во второй.
+//
+// ⚠️ У групп surface="muted" — иначе их не видно. Поверхность диалога это
+// bg-card/50 поверх затемнения (ui/dialog.tsx), и в тёмной теме она
+// складывается почти ровно в цвет bg-card. Подробнее — в list-group.tsx.
+//
+// ⚠️ Подсказки-вопросика у интервала обновления больше нет: её текст
+// (profile.updateIntervalLockedHelp) переехал во вторую строку самой
+// настройки и показывается ровно тогда же — когда интервал задан удалённо.
+// Ключ перевода тот же.
+//
+// ⚠️ Поля правят черновик values, а не конфиг: применяет его кнопка в подвале
+// окна, и она остаётся как была. Поле отдаёт правку черновику по уходу и по
+// Enter (FieldRow) — нажатие на «Сохранить» сначала уводит фокус из поля,
+// поэтому последняя правка в сохранение попадает.
 const EditInfoModal: React.FC<Props> = (props) => {
   const { t } = useTranslation()
   const { item, isCurrent, updateProfileItem, onClose } = props
@@ -131,6 +164,57 @@ const EditInfoModal: React.FC<Props> = (props) => {
     setUrlTouched(false)
   }
 
+  // Пять настроек удалённой подписки идут и при импорте, и при правке —
+  // поэтому лежат одним набором строк, а не двумя копиями.
+  const remoteRows = (
+    <>
+      <FieldRow
+        icon={MonitorSmartphone}
+        label={t('profile.customUA')}
+        value={values.ua ?? ''}
+        width={200}
+        onCommit={(next) => setValues({ ...values, ua: next.trim() || undefined })}
+      />
+      <SwitchRow
+        icon={Shield}
+        label={t('profile.verifyFormat')}
+        checked={values.verify ?? true}
+        onCheckedChange={(v) => setValues({ ...values, verify: v })}
+      />
+      <SwitchRow
+        icon={Network}
+        label={t('profile.useProxyUpdate')}
+        checked={values.useProxy ?? false}
+        onCheckedChange={(v) => setValues({ ...values, useProxy: v })}
+      />
+      <SwitchRow
+        icon={RefreshCw}
+        label={t('profile.autoUpdate')}
+        checked={values.autoUpdate ?? false}
+        onCheckedChange={(v) => setValues({ ...values, autoUpdate: v })}
+      />
+      {values.autoUpdate && (
+        <FieldRow
+          icon={Timer}
+          label={t('profile.updateIntervalMinutes')}
+          sub={values.locked ? t('profile.updateIntervalLockedHelp') : undefined}
+          value={values.interval?.toString() ?? ''}
+          width={84}
+          inputMode="numeric"
+          disabled={values.locked}
+          onCommit={(next) => {
+            let num = parseInt(next)
+            // Пустое поле раньше уезжало в профиль как NaN. Главный процесс
+            // всё равно читает его как `interval || 0` (main/config/profile),
+            // так что ноль — то же самое, только видно.
+            if (isNaN(num)) num = 0
+            setValues({ ...values, interval: num })
+          }}
+        />
+      )}
+    </>
+  )
+
   return (
     <Dialog
       open={true}
@@ -154,7 +238,7 @@ const EditInfoModal: React.FC<Props> = (props) => {
         </DialogHeader>
 
         {isNew ? (
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-3 [&>section:last-child]:mb-0">
             {/* Source: URL input or local file picker */}
             {isLocal ? (
               <div className="flex flex-col gap-2">
@@ -242,180 +326,52 @@ const EditInfoModal: React.FC<Props> = (props) => {
             </button>
 
             {showAdvanced && (
-              <div className="rounded-xl border border-stroke/50 bg-accent/20 p-3 flex flex-col gap-2">
-                <SettingItem title={t('profile.profileType')}>
-                  <div className="flex gap-1">
-                    <Button
-                      size="sm"
-                      variant={!isLocal ? 'default' : 'outline'}
-                      className="h-7 px-3 text-xs"
-                      onClick={() => switchToType('remote')}
-                    >
-                      {t('common.remote')}
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant={isLocal ? 'default' : 'outline'}
-                      className="h-7 px-3 text-xs"
-                      onClick={() => switchToType('local')}
-                    >
-                      {t('common.local')}
-                    </Button>
-                  </div>
-                </SettingItem>
-                <SettingItem title={t('profile.name')}>
-                  <Input
-                    className="h-8"
-                    value={values.name}
-                    onChange={(e) => setValues({ ...values, name: e.target.value })}
-                  />
-                </SettingItem>
-                {!isLocal && (
-                  <>
-                    <SettingItem title={t('profile.customUA')}>
-                      <Input
-                        className="h-8"
-                        value={values.ua ?? ''}
-                        onChange={(e) =>
-                          setValues({ ...values, ua: e.target.value.trim() || undefined })
-                        }
-                      />
-                    </SettingItem>
-                    <SettingItem title={t('profile.verifyFormat')}>
-                      <Switch
-                        checked={values.verify ?? true}
-                        onCheckedChange={(v) => setValues({ ...values, verify: v })}
-                      />
-                    </SettingItem>
-                    <SettingItem title={t('profile.useProxyUpdate')}>
-                      <Switch
-                        checked={values.useProxy ?? false}
-                        onCheckedChange={(v) => setValues({ ...values, useProxy: v })}
-                      />
-                    </SettingItem>
-                    <SettingItem title={t('profile.autoUpdate')}>
-                      <Switch
-                        checked={values.autoUpdate ?? false}
-                        onCheckedChange={(v) => setValues({ ...values, autoUpdate: v })}
-                      />
-                    </SettingItem>
-                    {values.autoUpdate && (
-                      <SettingItem
-                        title={t('profile.updateIntervalMinutes')}
-                        actions={
-                          values.locked && (
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button size="icon-sm" variant="ghost">
-                                  <MessageCircleQuestionMark className="text-lg" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                {t('profile.updateIntervalLockedHelp')}
-                              </TooltipContent>
-                            </Tooltip>
-                          )
-                        }
-                      >
-                        <Input
-                          type="number"
-                          className="h-8 w-24"
-                          value={values.interval?.toString() ?? ''}
-                          onChange={(e) =>
-                            setValues({ ...values, interval: parseInt(e.target.value) })
-                          }
-                          disabled={values.locked}
-                        />
-                      </SettingItem>
-                    )}
-                  </>
-                )}
-              </div>
+              <Group surface="muted">
+                <SegmentRow
+                  icon={FileText}
+                  label={t('profile.profileType')}
+                  value={values.type}
+                  options={[
+                    { value: 'remote', label: t('common.remote') },
+                    { value: 'local', label: t('common.local') }
+                  ]}
+                  onChange={switchToType}
+                />
+                <FieldRow
+                  icon={Tag}
+                  label={t('profile.name')}
+                  value={values.name}
+                  width={200}
+                  onCommit={(next) => setValues({ ...values, name: next })}
+                />
+                {!isLocal && remoteRows}
+              </Group>
             )}
           </div>
         ) : (
           /* Edit existing profile */
-          <div className="flex flex-col gap-3 overflow-y-auto max-h-[60vh]">
+          <div className="overflow-y-auto max-h-[60vh] [&>section:last-child]:mb-0">
             {/* Identity */}
-            <div className="rounded-xl border border-stroke/50 bg-accent/20 p-3 flex flex-col gap-2">
-              <SettingItem title={t('profile.name')}>
-                <Input
-                  className="h-8"
-                  value={values.name}
-                  onChange={(e) => setValues({ ...values, name: e.target.value })}
-                />
-              </SettingItem>
+            <Group surface="muted">
+              <FieldRow
+                icon={Tag}
+                label={t('profile.name')}
+                value={values.name}
+                width={200}
+                onCommit={(next) => setValues({ ...values, name: next })}
+              />
               {values.type === 'remote' && (
-                <SettingItem title={t('profile.subscriptionAddress')}>
-                  <Input
-                    className="h-8"
-                    value={values.url}
-                    onChange={(e) => setValues({ ...values, url: e.target.value })}
-                  />
-                </SettingItem>
+                <FieldRow
+                  icon={Globe}
+                  label={t('profile.subscriptionAddress')}
+                  value={values.url ?? ''}
+                  width={220}
+                  onCommit={(next) => setValues({ ...values, url: next })}
+                />
               )}
-            </div>
+            </Group>
             {/* Remote settings */}
-            {values.type === 'remote' && (
-              <div className="rounded-xl border border-stroke/50 bg-accent/20 p-3 flex flex-col gap-2">
-                <SettingItem title={t('profile.customUA')}>
-                  <Input
-                    className="h-8"
-                    value={values.ua ?? ''}
-                    onChange={(e) =>
-                      setValues({ ...values, ua: e.target.value.trim() || undefined })
-                    }
-                  />
-                </SettingItem>
-                <SettingItem title={t('profile.verifyFormat')}>
-                  <Switch
-                    checked={values.verify ?? true}
-                    onCheckedChange={(v) => setValues({ ...values, verify: v })}
-                  />
-                </SettingItem>
-                <SettingItem title={t('profile.useProxyUpdate')}>
-                  <Switch
-                    checked={values.useProxy ?? false}
-                    onCheckedChange={(v) => setValues({ ...values, useProxy: v })}
-                  />
-                </SettingItem>
-                <SettingItem title={t('profile.autoUpdate')}>
-                  <Switch
-                    checked={values.autoUpdate ?? false}
-                    onCheckedChange={(v) => setValues({ ...values, autoUpdate: v })}
-                  />
-                </SettingItem>
-                {values.autoUpdate && (
-                  <SettingItem
-                    title={t('profile.updateIntervalMinutes')}
-                    actions={
-                      values.locked && (
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button size="icon-sm" variant="ghost">
-                              <MessageCircleQuestionMark className="text-lg" />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            {t('profile.updateIntervalLockedHelp')}
-                          </TooltipContent>
-                        </Tooltip>
-                      )
-                    }
-                  >
-                    <Input
-                      type="number"
-                      className="h-8 w-24"
-                      value={values.interval?.toString() ?? ''}
-                      onChange={(e) =>
-                        setValues({ ...values, interval: parseInt(e.target.value) })
-                      }
-                      disabled={values.locked}
-                    />
-                  </SettingItem>
-                )}
-              </div>
-            )}
+            {values.type === 'remote' && <Group surface="muted">{remoteRows}</Group>}
           </div>
         )}
 

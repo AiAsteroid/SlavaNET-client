@@ -1,15 +1,10 @@
 import { toast } from 'sonner'
-import SettingCard from '@renderer/components/base/base-setting-card'
-import SettingItem from '@renderer/components/base/base-setting-item'
-import { Button } from '@renderer/components/ui/button'
-import { Input } from '@renderer/components/ui/input'
-import { Switch } from '@renderer/components/ui/switch'
-import { Tabs, TabsList, TabsTrigger } from '@renderer/components/ui/tabs'
+import { useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import { Clock, Database, Globe, ListTree, RefreshCcw, Route, Table2, Timer } from 'lucide-react'
+import { FieldRow, Group, SegmentRow, SwitchRow } from '@renderer/components/shell/list-group'
 import { useControledMihomoConfig } from '@renderer/hooks/use-controled-mihomo-config'
 import { mihomoUpgradeGeo } from '@renderer/utils/ipc'
-import { useState, useEffect, useMemo } from 'react'
-import { useTranslation } from 'react-i18next'
-import { RefreshCcw } from 'lucide-react'
 
 const defaultGeoxUrl = {
   geoip: 'https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geoip-lite.dat',
@@ -18,6 +13,27 @@ const defaultGeoxUrl = {
   asn: 'https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/GeoLite2-ASN.mmdb'
 }
 
+// Ширина поля с адресом базы. Поле выключено по правому краю, поэтому видно
+// хвост адреса — ровно ту часть, которой базы отличаются друг от друга
+// (geoip-lite.dat против geoip.metadb). Шире 180 брать нельзя: при минимальной
+// ширине окна (420px, src/main/index.ts:693) подпись начинает переноситься на
+// вторую строку.
+const URL_FIELD_WIDTH = 180
+
+// Geo-базы на общем наборе строк (components/shell/list-group). Было: одна
+// карточка старого вида на семь строк, где у каждого из четырёх адресов рядом
+// с полем появлялась кнопка «Подтвердить» — четыре кнопки, которых не было
+// видно, пока не начнёшь правку.
+//
+// ⚠️ Кнопок «Подтвердить» больше нет (решение владельца 02.10.2026): адрес
+// применяется по уходу из поля и по Enter, Escape возвращает прежний. Вместе с
+// кнопками ушли и пять состояний, которые их показывали (geoipInput,
+// geositeInput, mmdbInput, asnInput, intervalInput) и две синхронизации этих
+// состояний с конфигом: черновик теперь хранит сама строка набора.
+//
+// ⚠️ Ручное обновление баз осталось на том же месте — значком перед
+// переключателем (action у строки), как и было в правом углу старой строки.
+// Спиннер показывает сама строка (busy), поэтому крутящегося значка больше нет.
 const GeoData: React.FC = () => {
   const { t } = useTranslation()
   const { controledMihomoConfig, patchControledMihomoConfig } = useControledMihomoConfig()
@@ -30,168 +46,94 @@ const GeoData: React.FC = () => {
 
   const geoxUrl = useMemo(() => ({ ...defaultGeoxUrl, ...geoxUrlRaw }), [geoxUrlRaw])
 
-  const [geoipInput, setGeoIpInput] = useState(geoxUrl.geoip)
-  const [geositeInput, setGeositeInput] = useState(geoxUrl.geosite)
-  const [mmdbInput, setMmdbInput] = useState(geoxUrl.mmdb)
-  const [asnInput, setAsnInput] = useState(geoxUrl.asn)
-  const [intervalInput, setIntervalInput] = useState((geoUpdateInterval ?? 24).toString())
   const [updating, setUpdating] = useState(false)
 
-  useEffect(() => {
-    setGeoIpInput(geoxUrl.geoip)
-    setGeositeInput(geoxUrl.geosite)
-    setMmdbInput(geoxUrl.mmdb)
-    setAsnInput(geoxUrl.asn)
-  }, [geoxUrl])
-
-  useEffect(() => {
-    setIntervalInput((geoUpdateInterval ?? 24).toString())
-  }, [geoUpdateInterval])
+  const onUpgradeGeo = async (): Promise<void> => {
+    setUpdating(true)
+    try {
+      await mihomoUpgradeGeo()
+      new Notification(t('resources.geoUpdateSuccess'))
+    } catch (e) {
+      toast.error(`${e}`)
+    } finally {
+      setUpdating(false)
+    }
+  }
 
   return (
-    <SettingCard>
-      <SettingItem title={t('resources.geoipDatabase')} divider>
-        <div className="flex w-[70%]">
-          {geoipInput !== geoxUrl.geoip && (
-            <Button
-              size="sm"
-              className="mr-2"
-              onClick={() => {
-                patchControledMihomoConfig({ 'geox-url': { ...geoxUrl, geoip: geoipInput } })
-              }}
-            >
-              {t('common.confirm')}
-            </Button>
-          )}
-          <Input
-            className="h-8"
-            value={geoipInput}
-            onChange={(event) => setGeoIpInput(event.target.value)}
-          />
-        </div>
-      </SettingItem>
-      <SettingItem title={t('resources.geositeDatabase')} divider>
-        <div className="flex w-[70%]">
-          {geositeInput !== geoxUrl.geosite && (
-            <Button
-              size="sm"
-              className="mr-2"
-              onClick={() => {
-                patchControledMihomoConfig({ 'geox-url': { ...geoxUrl, geosite: geositeInput } })
-              }}
-            >
-              {t('common.confirm')}
-            </Button>
-          )}
-          <Input
-            className="h-8"
-            value={geositeInput}
-            onChange={(event) => setGeositeInput(event.target.value)}
-          />
-        </div>
-      </SettingItem>
-      <SettingItem title={t('resources.mmdbDatabase')} divider>
-        <div className="flex w-[70%]">
-          {mmdbInput !== geoxUrl.mmdb && (
-            <Button
-              size="sm"
-              className="mr-2"
-              onClick={() => {
-                patchControledMihomoConfig({ 'geox-url': { ...geoxUrl, mmdb: mmdbInput } })
-              }}
-            >
-              {t('common.confirm')}
-            </Button>
-          )}
-          <Input
-            className="h-8"
-            value={mmdbInput}
-            onChange={(event) => setMmdbInput(event.target.value)}
-          />
-        </div>
-      </SettingItem>
-      <SettingItem title={t('resources.asnDatabase')} divider>
-        <div className="flex w-[70%]">
-          {asnInput !== geoxUrl.asn && (
-            <Button
-              size="sm"
-              className="mr-2"
-              onClick={() => {
-                patchControledMihomoConfig({ 'geox-url': { ...geoxUrl, asn: asnInput } })
-              }}
-            >
-              {t('common.confirm')}
-            </Button>
-          )}
-          <Input
-            className="h-8"
-            value={asnInput}
-            onChange={(event) => setAsnInput(event.target.value)}
-          />
-        </div>
-      </SettingItem>
-      <SettingItem title={t('resources.geoipDataMode')} divider>
-        <Tabs
-          value={geoMode ? 'dat' : 'db'}
-          onValueChange={(value) => {
-            patchControledMihomoConfig({ 'geodata-mode': value === 'dat' })
-          }}
-        >
-          <TabsList>
-            <TabsTrigger value="db">db</TabsTrigger>
-            <TabsTrigger value="dat">dat</TabsTrigger>
-          </TabsList>
-        </Tabs>
-      </SettingItem>
-      <SettingItem
-        title={t('resources.autoUpdateGeoData')}
-        actions={
-          <Button
-            size="icon-sm"
-            variant="ghost"
-            onClick={async () => {
-              setUpdating(true)
-              try {
-                await mihomoUpgradeGeo()
-                new Notification(t('resources.geoUpdateSuccess'))
-              } catch (e) {
-                toast.error(`${e}`)
-              } finally {
-                setUpdating(false)
-              }
-            }}
-          >
-            <RefreshCcw className={`text-lg ${updating ? 'animate-spin' : ''}`} />
-          </Button>
+    <Group>
+      <FieldRow
+        icon={Globe}
+        label={t('resources.geoipDatabase')}
+        value={geoxUrl.geoip}
+        width={URL_FIELD_WIDTH}
+        onCommit={(next) => patchControledMihomoConfig({ 'geox-url': { ...geoxUrl, geoip: next } })}
+      />
+      <FieldRow
+        icon={ListTree}
+        label={t('resources.geositeDatabase')}
+        value={geoxUrl.geosite}
+        width={URL_FIELD_WIDTH}
+        onCommit={(next) =>
+          patchControledMihomoConfig({ 'geox-url': { ...geoxUrl, geosite: next } })
         }
-        divider={geoAutoUpdate}
-      >
-        <Switch
-          checked={geoAutoUpdate}
-          onCheckedChange={(value) => {
-            patchControledMihomoConfig({ 'geo-auto-update': value })
+      />
+      <FieldRow
+        icon={Database}
+        label={t('resources.mmdbDatabase')}
+        value={geoxUrl.mmdb}
+        width={URL_FIELD_WIDTH}
+        onCommit={(next) => patchControledMihomoConfig({ 'geox-url': { ...geoxUrl, mmdb: next } })}
+      />
+      <FieldRow
+        icon={Route}
+        label={t('resources.asnDatabase')}
+        value={geoxUrl.asn}
+        width={URL_FIELD_WIDTH}
+        onCommit={(next) => patchControledMihomoConfig({ 'geox-url': { ...geoxUrl, asn: next } })}
+      />
+      <SegmentRow
+        icon={Table2}
+        label={t('resources.geoipDataMode')}
+        value={geoMode ? 'dat' : 'db'}
+        options={[
+          { value: 'db', label: 'db' },
+          { value: 'dat', label: 'dat' }
+        ]}
+        onChange={(value) => {
+          patchControledMihomoConfig({ 'geodata-mode': value === 'dat' })
+        }}
+      />
+      <SwitchRow
+        icon={Clock}
+        label={t('resources.autoUpdateGeoData')}
+        checked={geoAutoUpdate}
+        busy={updating}
+        onCheckedChange={(value) => {
+          patchControledMihomoConfig({ 'geo-auto-update': value })
+        }}
+        action={{ icon: RefreshCcw, label: t('common.update'), onClick: onUpgradeGeo }}
+      />
+      {geoAutoUpdate && (
+        <FieldRow
+          icon={Timer}
+          label={t('resources.updateInterval')}
+          value={geoUpdateInterval.toString()}
+          width={72}
+          inputMode="numeric"
+          onCommit={async (next) => {
+            const num = parseInt(next)
+            // Раньше непригодное значение откатывало поле к прежнему. Теперь
+            // черновик хранит сама строка, и откатывать нечем, поэтому мусор
+            // приводим к прежнему интервалу, а ноль и отрицательные — к одному
+            // часу: с нулём ядро обновляло бы базы без остановки.
+            await patchControledMihomoConfig({
+              'geo-update-interval': isNaN(num) ? geoUpdateInterval : Math.max(num, 1)
+            })
           }}
         />
-      </SettingItem>
-      {geoAutoUpdate && (
-        <SettingItem title={t('resources.updateInterval')}>
-          <Input
-            type="number"
-            className="w-25 h-8"
-            value={intervalInput}
-            onChange={(event) => setIntervalInput(event.target.value)}
-            onBlur={() => {
-              const val = parseInt(intervalInput)
-              if (!isNaN(val) && val > 0) {
-                patchControledMihomoConfig({ 'geo-update-interval': val })
-              } else {
-                setIntervalInput((geoUpdateInterval ?? 24).toString())
-              }
-            }}
-          />
-        </SettingItem>
       )}
-    </SettingCard>
+    </Group>
   )
 }
 

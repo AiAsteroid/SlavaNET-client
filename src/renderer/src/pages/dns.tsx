@@ -30,6 +30,12 @@ import { useTranslation } from 'react-i18next'
 // соседней строки и исчезала при первом же движении мыши. Текст тот же, ключи
 // перевода те же.
 //
+// ⚠️ Вторая строка в наборе однострочная и обрезается по ширине, а «Неверный
+// формат CIDR (пример: 198.18.0.1/16)» в неё не влезает. Поэтому красная
+// пометка у строки — признак «сюда смотреть», а полный текст уходит
+// уведомлением, тем же способом, которым экран сообщает об остальных ошибках.
+// Кнопка «Сохранить» в шапке при ошибке по-прежнему заблокирована.
+//
 // ⚠️ Списки-редакторы (EditableList) оставлены как есть — заголовок каждого
 // переехал в заголовок его группы, из тех же ключей.
 const DNS: React.FC = () => {
@@ -204,7 +210,9 @@ const DNS: React.FC = () => {
                 onCommit={(next) => {
                   setValues({ ...values, fakeIPRange: next })
                   const r = isValidIPv4Cidr(next)
-                  setFakeIPRangeError(r.ok ? null : (r.error ?? t('common.formatError')))
+                  const error = r.ok ? null : (r.error ?? t('common.formatError'))
+                  setFakeIPRangeError(error)
+                  if (error) toast.error(error)
                 }}
               />
               {values.ipv6 && (
@@ -222,7 +230,9 @@ const DNS: React.FC = () => {
                   onCommit={(next) => {
                     setValues({ ...values, fakeIPRange6: next })
                     const r = isValidIPv6Cidr(next)
-                    setFakeIPRange6Error(r.ok ? null : (r.error ?? t('common.formatError')))
+                    const error = r.ok ? null : (r.error ?? t('common.formatError'))
+                    setFakeIPRange6Error(error)
+                    if (error) toast.error(error)
                   }}
                 />
               )}
@@ -241,7 +251,9 @@ const DNS: React.FC = () => {
                   setValues({ ...values, fakeIPFilter: arr })
                   const firstInvalid = arr.find((f) => !isValidDomainWildcard(f).ok)
                   setFakeIPFilterError(
-                    firstInvalid ? (isValidDomainWildcard(firstInvalid).error ?? t('common.formatError')) : null
+                    firstInvalid
+                      ? (isValidDomainWildcard(firstInvalid).error ?? t('common.formatError'))
+                      : null
                   )
                 }}
                 placeholder={t('pages.dns.placeholderLan')}
@@ -261,7 +273,9 @@ const DNS: React.FC = () => {
                 setValues({ ...values, defaultNameserver: arr })
                 const firstInvalid = arr.find((f) => !isValidDnsServer(f, true).ok)
                 setDefaultNameserverError(
-                  firstInvalid ? (isValidDnsServer(firstInvalid, true).error ?? t('common.formatError')) : null
+                  firstInvalid
+                    ? (isValidDnsServer(firstInvalid, true).error ?? t('common.formatError'))
+                    : null
                 )
               }}
               placeholder={t('pages.dns.placeholderDNS')}
@@ -280,7 +294,9 @@ const DNS: React.FC = () => {
                 setValues({ ...values, nameserver: arr })
                 const firstInvalid = arr.find((f) => !isValidDnsServer(f).ok)
                 setNameserverError(
-                  firstInvalid ? (isValidDnsServer(firstInvalid).error ?? t('common.formatError')) : null
+                  firstInvalid
+                    ? (isValidDnsServer(firstInvalid).error ?? t('common.formatError'))
+                    : null
                 )
               }}
               placeholder={t('pages.dns.placeholderTLS')}

@@ -1,27 +1,52 @@
 import { toast } from 'sonner'
-import { Button } from '@renderer/components/ui/button'
-import { Input } from '@renderer/components/ui/input'
-import { Spinner } from '@renderer/components/ui/spinner'
-import { Switch } from '@renderer/components/ui/switch'
-import { Tabs, TabsList, TabsTrigger } from '@renderer/components/ui/tabs'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from '@renderer/components/ui/select'
-import BasePage from '@renderer/components/base/base-page'
-import SettingCard from '@renderer/components/base/base-setting-card'
-import SettingItem from '@renderer/components/base/base-setting-item'
-import EditableList from '@renderer/components/base/base-list-editor'
-import { useControledMihomoConfig } from '@renderer/hooks/use-controled-mihomo-config'
-import { restartCore, setupFirewall } from '@renderer/utils/ipc'
-import { platform } from '@renderer/utils/init'
 import React, { useState } from 'react'
-import { useAppConfig } from '@renderer/hooks/use-app-config'
 import { useTranslation } from 'react-i18next'
+import { Globe, Network, Shield } from 'lucide-react'
+import { Button } from '@renderer/components/ui/button'
+import BasePage from '@renderer/components/base/base-page'
+import EditableList from '@renderer/components/base/base-list-editor'
+import {
+  FieldRow,
+  Group,
+  Row,
+  SegmentRow,
+  SelectRow,
+  SwitchRow
+} from '@renderer/components/shell/list-group'
+import { useAppConfig } from '@renderer/hooks/use-app-config'
+import { useControledMihomoConfig } from '@renderer/hooks/use-controled-mihomo-config'
+import { platform } from '@renderer/utils/init'
+import { restartCore, setupFirewall } from '@renderer/utils/ipc'
 
+// ⚠️ MTU по умолчанию — та же 1500, что подставляется при чтении конфига ниже.
+// Отдельной константой она нужна полю, которое применяет правку само: на
+// пустую строку оно обязано чем-то ответить, а parseInt('') — это NaN. Прежнее
+// поле писало этот NaN прямо в values, и в конфиг ядра он уходил как null,
+// молча ломая туннель.
+const DEFAULT_MTU = 1500
+
+// Настройки TUN на общем наборе строк (components/shell/list-group).
+//
+// Было: одна общая карточка на тринадцать строк старого вида, где
+// переключатели, поля ввода и заливные кнопки стояли вперемешку и каждая форма
+// строки держала свою геометрию. Стало: три группы и те же тринадцать
+// настроек, ни одна не потерялась.
+//
+// Группы делят настройки по тому, КОГДА они применяются: первая — то, что
+// уходит в систему сразу (управление TUN, брандмауэр, системный DNS), вторая —
+// параметры самого туннеля, которые копятся в values и уезжают в ядро кнопкой
+// «Сохранить» в шапке. Эта кнопка — единственная оставшаяся: поля применяют
+// правку сами (onCommit по уходу и по Enter), и «Подтвердить» рядом с полем
+// больше нет.
+//
+// ⚠️ Первые две группы без заголовков намеренно: подходящего ключа перевода
+// нет, а новых здесь не заводят — локали правит другой человек. Третья группа
+// забрала заголовок у списка (excludeCustomNetworks), иначе он повторялся бы
+// дважды: в шапке группы и внутри самого редактора.
+//
+// ⚠️ Значки — только у строк, которые включают целый механизм или ведут
+// наружу. У девяти однотипных параметров туннеля они превратились бы в набор
+// случайных картинок, который не помогает читать, а мешает.
 const Tun: React.FC = () => {
   const { t } = useTranslation()
   const { controledMihomoConfig, patchControledMihomoConfig } = useControledMihomoConfig()
@@ -39,7 +64,7 @@ const Tun: React.FC = () => {
     'route-exclude-address': routeExcludeAddress = [],
     'strict-route': strictRoute = false,
     'disable-icmp-forwarding': disableIcmpForwarding = false,
-    mtu = 1500
+    mtu = DEFAULT_MTU
   } = tun || {}
   const [changed, setChanged] = useState(false)
   const [values, originSetValues] = useState({
@@ -70,190 +95,177 @@ const Tun: React.FC = () => {
   }
 
   return (
-    <>
-      <BasePage
-        title={t('pages.tun.title')}
-        header={
-          changed && (
-            <Button
-              size="sm"
-              className="app-nodrag"
-              onClick={() =>
-                onSave({
-                  tun: {
-                    device: values.device,
-                    stack: values.stack,
-                    'auto-route': values.autoRoute,
-                    'auto-redirect': values.autoRedirect,
-                    'auto-detect-interface': values.autoDetectInterface,
-                    'dns-hijack': values.dnsHijack,
-                    'strict-route': values.strictRoute,
-                    'route-exclude-address': values.routeExcludeAddress,
-                    'disable-icmp-forwarding': values.disableIcmpForwarding,
-                    mtu: values.mtu
-                  }
-                })
+    <BasePage
+      title={t('pages.tun.title')}
+      header={
+        changed && (
+          <Button
+            size="sm"
+            className="app-nodrag"
+            onClick={() =>
+              onSave({
+                tun: {
+                  device: values.device,
+                  stack: values.stack,
+                  'auto-route': values.autoRoute,
+                  'auto-redirect': values.autoRedirect,
+                  'auto-detect-interface': values.autoDetectInterface,
+                  'dns-hijack': values.dnsHijack,
+                  'strict-route': values.strictRoute,
+                  'route-exclude-address': values.routeExcludeAddress,
+                  'disable-icmp-forwarding': values.disableIcmpForwarding,
+                  mtu: values.mtu
+                }
+              })
+            }
+          >
+            {t('common.save')}
+          </Button>
+        )
+      }
+    >
+      <div className="tun-settings px-4 pt-1">
+        <Group>
+          <SwitchRow
+            icon={Network}
+            label={t('pages.tun.takeOverTun')}
+            checked={controlTun}
+            onCheckedChange={async (value) => {
+              try {
+                await patchAppConfig({ controlTun: value })
+                await patchControledMihomoConfig(value ? {} : { tun: { enable: false } })
+              } catch (e) {
+                toast.error(`${e}`)
               }
-            >
-              {t('common.save')}
-            </Button>
-          )
-        }
-      >
-        <SettingCard className="tun-settings">
-          <SettingItem title={t('pages.tun.takeOverTun')} divider>
-            <Switch
-              checked={controlTun}
-              onCheckedChange={async (value) => {
+            }}
+          />
+          {/* Сброс брандмауэра перезапускает ядро — строка-действие, а не
+              настройка. Спиннер теперь у самой строки (busy), отдельная
+              заливная кнопка внутри строки не нужна. */}
+          {platform === 'win32' && (
+            <Row
+              icon={Shield}
+              label={t('pages.tun.resetFirewall')}
+              busy={loading}
+              disabled={loading}
+              trailing="chevron"
+              onClick={async () => {
+                setLoading(true)
                 try {
-                  await patchAppConfig({ controlTun: value })
-                  await patchControledMihomoConfig(value ? {} : { tun: { enable: false } })
+                  await setupFirewall()
+                  new Notification(t('pages.tun.firewallResetSuccess'))
+                  await restartCore()
                 } catch (e) {
                   toast.error(`${e}`)
+                } finally {
+                  setLoading(false)
                 }
               }}
             />
-          </SettingItem>
-          {platform === 'win32' && (
-            <SettingItem title={t('pages.tun.resetFirewall')} divider>
-              <Button
-                size="sm"
-                disabled={loading}
-                onClick={async () => {
-                  setLoading(true)
-                  try {
-                    await setupFirewall()
-                    new Notification(t('pages.tun.firewallResetSuccess'))
-                    await restartCore()
-                  } catch (e) {
-                    toast.error(`${e}`)
-                  } finally {
-                    setLoading(false)
-                  }
-                }}
-              >
-                {loading && <Spinner className="mr-2 size-4" />}
-                {t('pages.tun.resetFirewallButton')}
-              </Button>
-            </SettingItem>
           )}
+          {/* Три способа с длинными именами («Не устанавливать автоматически»)
+              в сегменты не влезают — остаётся выбор из списка, как и было. */}
           {platform === 'darwin' && (
-            <SettingItem title={t('pages.tun.autoSetSystemDNS')} divider>
-              <Select
-                value={autoSetDNSMode}
-                onValueChange={async (value) => {
-                  await patchAppConfig({ autoSetDNSMode: value as 'none' | 'exec' | 'service' })
-                }}
-              >
-                <SelectTrigger size="sm" className="w-50">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent position="popper" className="mr-5.5">
-                  <SelectItem value="none">{t('pages.tun.noAutoSet')}</SelectItem>
-                  <SelectItem value="exec">{t('pages.tun.execCommand')}</SelectItem>
-                  <SelectItem value="service">{t('pages.tun.serviceMode')}</SelectItem>
-                </SelectContent>
-              </Select>
-            </SettingItem>
+            <SelectRow
+              icon={Globe}
+              label={t('pages.tun.autoSetSystemDNS')}
+              value={autoSetDNSMode}
+              options={[
+                { value: 'none', label: t('pages.tun.noAutoSet') },
+                { value: 'exec', label: t('pages.tun.execCommand') },
+                { value: 'service', label: t('pages.tun.serviceMode') }
+              ]}
+              onChange={async (value) => {
+                await patchAppConfig({ autoSetDNSMode: value })
+              }}
+            />
           )}
-          <SettingItem title={t('pages.tun.tunModeStack')} divider>
-            <Tabs
-              value={values.stack}
-              onValueChange={(value) => setValues({ ...values, stack: value as TunStack })}
-            >
-              <TabsList>
-                <TabsTrigger value="gvisor">gVisor</TabsTrigger>
-                <TabsTrigger value="mixed">Mixed</TabsTrigger>
-                <TabsTrigger value="system">System</TabsTrigger>
-              </TabsList>
-            </Tabs>
-          </SettingItem>
+        </Group>
+
+        <Group>
+          <SegmentRow
+            label={t('pages.tun.tunModeStack')}
+            value={values.stack}
+            options={[
+              { value: 'gvisor', label: 'gVisor' },
+              { value: 'mixed', label: 'Mixed' },
+              { value: 'system', label: 'System' }
+            ]}
+            onChange={(value) => setValues({ ...values, stack: value })}
+          />
           {platform !== 'darwin' && (
             <>
-              <SettingItem title={t('pages.tun.tunCardName')} divider>
-                <Input
-                  className="w-[100px]"
-                  value={values.device || ''}
-                  onChange={(event) => {
-                    setValues({ ...values, device: event.target.value })
-                  }}
-                />
-              </SettingItem>
-              <SettingItem title={t('pages.tun.strictRoute')} divider>
-                <Switch
-                  checked={values.strictRoute}
-                  onCheckedChange={(value) => {
-                    setValues({ ...values, strictRoute: value })
-                  }}
-                />
-              </SettingItem>
+              <FieldRow
+                label={t('pages.tun.tunCardName')}
+                value={values.device ?? ''}
+                width={120}
+                onCommit={(next) => setValues({ ...values, device: next })}
+              />
+              <SwitchRow
+                label={t('pages.tun.strictRoute')}
+                checked={values.strictRoute}
+                onCheckedChange={(value) => setValues({ ...values, strictRoute: value })}
+              />
             </>
           )}
-          <SettingItem title={t('pages.tun.autoSetRouteRules')} divider>
-            <Switch
-              checked={values.autoRoute}
-              onCheckedChange={(value) => {
-                setValues({ ...values, autoRoute: value })
-              }}
-            />
-          </SettingItem>
-          {platform === 'linux' && (
-            <SettingItem title={t('pages.tun.autoSetTCPRedirect')} divider>
-              <Switch
-                checked={values.autoRedirect}
-                onCheckedChange={(value) => {
-                  setValues({ ...values, autoRedirect: value })
-                }}
-              />
-            </SettingItem>
-          )}
-          <SettingItem title={t('pages.tun.autoSelectTrafficExit')} divider>
-            <Switch
-              checked={values.autoDetectInterface}
-              onCheckedChange={(value) => {
-                setValues({ ...values, autoDetectInterface: value })
-              }}
-            />
-          </SettingItem>
-          <SettingItem title={t('pages.tun.icmpForwarding')} divider>
-            <Switch
-              checked={!values.disableIcmpForwarding}
-              onCheckedChange={(value) => {
-                setValues({ ...values, disableIcmpForwarding: !value })
-              }}
-            />
-          </SettingItem>
-          <SettingItem title="MTU" divider>
-            <Input
-              type="number"
-              className="w-[100px]"
-              value={values.mtu.toString()}
-              onChange={(event) => {
-                setValues({ ...values, mtu: parseInt(event.target.value) })
-              }}
-            />
-          </SettingItem>
-          <SettingItem title={t('pages.tun.dnsHijack')} divider>
-            <Input
-              className="w-[50%]"
-              value={values.dnsHijack.join(',')}
-              onChange={(event) => {
-                const inputValue = event.target.value
-                const arr = inputValue !== '' ? inputValue.split(',') : []
-                setValues({ ...values, dnsHijack: arr })
-              }}
-            />
-          </SettingItem>
-          <EditableList
-            title={t('pages.tun.excludeCustomNetworks')}
-            items={values.routeExcludeAddress}
-            placeholder={t('pages.tun.exampleNetwork')}
-            onChange={(list) => setValues({ ...values, routeExcludeAddress: list as string[] })}
-            divider={false}
+          <SwitchRow
+            label={t('pages.tun.autoSetRouteRules')}
+            checked={values.autoRoute}
+            onCheckedChange={(value) => setValues({ ...values, autoRoute: value })}
           />
-        </SettingCard>
-      </BasePage>
-    </>
+          {platform === 'linux' && (
+            <SwitchRow
+              label={t('pages.tun.autoSetTCPRedirect')}
+              checked={values.autoRedirect}
+              onCheckedChange={(value) => setValues({ ...values, autoRedirect: value })}
+            />
+          )}
+          <SwitchRow
+            label={t('pages.tun.autoSelectTrafficExit')}
+            checked={values.autoDetectInterface}
+            onCheckedChange={(value) => setValues({ ...values, autoDetectInterface: value })}
+          />
+          {/* Переключатель показывает пересылку, а конфиг хранит её запрет:
+              значение инвертировано ровно так же, как было. */}
+          <SwitchRow
+            label={t('pages.tun.icmpForwarding')}
+            checked={!values.disableIcmpForwarding}
+            onCheckedChange={(value) => setValues({ ...values, disableIcmpForwarding: !value })}
+          />
+          <FieldRow
+            label="MTU"
+            value={values.mtu.toString()}
+            width={80}
+            inputMode="numeric"
+            onCommit={(next) => {
+              const num = parseInt(next)
+              setValues({ ...values, mtu: isNaN(num) ? DEFAULT_MTU : num })
+            }}
+          />
+          {/* Несколько адресов через запятую — так же, как в прежнем поле;
+              разбор строки остался прежним. */}
+          <FieldRow
+            label={t('pages.tun.dnsHijack')}
+            value={values.dnsHijack.join(',')}
+            width={140}
+            onCommit={(next) =>
+              setValues({ ...values, dnsHijack: next !== '' ? next.split(',') : [] })
+            }
+          />
+        </Group>
+
+        <Group title={t('pages.tun.excludeCustomNetworks')}>
+          <div className="px-3 py-2">
+            <EditableList
+              items={values.routeExcludeAddress}
+              placeholder={t('pages.tun.exampleNetwork')}
+              onChange={(list) => setValues({ ...values, routeExcludeAddress: list as string[] })}
+              divider={false}
+            />
+          </div>
+        </Group>
+      </div>
+    </BasePage>
   )
 }
 

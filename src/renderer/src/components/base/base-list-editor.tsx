@@ -26,6 +26,15 @@ interface EditableListProps {
   validatePart2?: (part2: string) => boolean | ValidationResult
 }
 
+// Поля редактора выглядят как поле в строке набора: заливка плитки, без
+// рамки, радиус плитки. Раньше тут стоял общий Input с рамкой и радиусом
+// карточки — внутри карточки получалась карточка в карточке, и редактор
+// списка был последним местом, где ещё виден старый вид.
+const FIELD =
+  'h-7 rounded-md border-0 bg-secondary px-2 text-sm shadow-none backdrop-blur-none ' +
+  'focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary'
+const FIELD_BAD = FIELD + ' ring-2 ring-inset ring-destructive'
+
 const EditableList: React.FC<EditableListProps> = ({
   title,
   items = [],
@@ -118,7 +127,13 @@ const EditableList: React.FC<EditableListProps> = ({
   return (
     <>
       <div className={`flex flex-col space-y-2 ${!title ? 'mt-2' : ''}`}>
-        {title && <h4 className="text-base font-medium">{title}</h4>}
+        {/* Заголовок редактора убран: его теперь показывает заголовок группы,
+            и два одинаковых текста подряд выглядели как ошибка. */}
+        {title && (
+          <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            {title}
+          </h4>
+        )}
         {displayed.map((entry, idx) => {
           const disabled = disableFirst && idx === 0
           const isExtra = idx === processedItems.length
@@ -170,9 +185,7 @@ const EditableList: React.FC<EditableListProps> = ({
                     <Tooltip open={!part1Valid}>
                       <TooltipTrigger asChild>
                         <Input
-                          className={
-                            part1Valid ? 'h-8' : 'h-8 border-red-500 ring-1 ring-red-500 rounded-lg'
-                          }
+                          className={part1Valid ? FIELD : FIELD_BAD}
                           disabled={disabled}
                           placeholder={placeholder}
                           value={entry.part1}
@@ -189,9 +202,7 @@ const EditableList: React.FC<EditableListProps> = ({
                     <Tooltip open={!part2Valid}>
                       <TooltipTrigger asChild>
                         <Input
-                          className={
-                            part2Valid ? 'h-8' : 'h-8 border-red-500 ring-1 ring-red-500 rounded-lg'
-                          }
+                          className={part2Valid ? FIELD : FIELD_BAD}
                           disabled={disabled}
                           placeholder={part2Placeholder}
                           value={entry.part2 || ''}
@@ -208,7 +219,7 @@ const EditableList: React.FC<EditableListProps> = ({
                 <Tooltip open={!part1Valid}>
                   <TooltipTrigger asChild>
                     <Input
-                      className={part1Valid ? 'h-8' : 'h-8 border-red-500 ring-1 ring-red-500 rounded-lg'}
+                      className={part1Valid ? FIELD : FIELD_BAD}
                       disabled={disabled}
                       placeholder={placeholder}
                       value={entry.part1}
@@ -224,7 +235,7 @@ const EditableList: React.FC<EditableListProps> = ({
                 <Button
                   size="sm"
                   variant="ghost"
-                  className="text-amber-500 hover:text-amber-600"
+                  className="size-7 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                   onClick={() => handleUpdate(idx, '', '')}
                 >
                   <Trash2 className="text-lg" />

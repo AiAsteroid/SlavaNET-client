@@ -96,7 +96,9 @@ const AdvancedDnsSetting: React.FC<AdvancedDnsSettingProps> = ({
               onDirectNameserverChange(arr)
               const firstInvalid = arr.find((f) => !isValidDnsServer(f).ok)
               setDirectNameserverError(
-                firstInvalid ? (isValidDnsServer(firstInvalid).error ?? t('common.formatError')) : null
+                firstInvalid
+                  ? (isValidDnsServer(firstInvalid).error ?? t('common.formatError'))
+                  : null
               )
             }}
             placeholder={t('pages.dns.placeholderTLS')}
@@ -115,7 +117,9 @@ const AdvancedDnsSetting: React.FC<AdvancedDnsSettingProps> = ({
               onProxyNameserverChange(arr)
               const firstInvalid = arr.find((f) => !isValidDnsServer(f).ok)
               setProxyNameserverError(
-                firstInvalid ? (isValidDnsServer(firstInvalid).error ?? t('common.formatError')) : null
+                firstInvalid
+                  ? (isValidDnsServer(firstInvalid).error ?? t('common.formatError'))
+                  : null
               )
             }}
             placeholder={t('pages.dns.placeholderTLS')}
@@ -214,12 +218,12 @@ const AdvancedDnsSetting: React.FC<AdvancedDnsSettingProps> = ({
               items={hosts ? Object.fromEntries(hosts.map((h) => [h.domain, h.value])) : {}}
               validatePart1={(part1) => isValidDomainWildcard(part1)}
               onChange={(rec) => {
-                const hostArr: IHost[] = Object.entries(rec as Record<string, string | string[]>).map(
-                  ([domain, value]) => ({
-                    domain,
-                    value: value as string | string[]
-                  })
-                )
+                const hostArr: IHost[] = Object.entries(
+                  rec as Record<string, string | string[]>
+                ).map(([domain, value]) => ({
+                  domain,
+                  value: value as string | string[]
+                }))
                 onHostsChange(hostArr)
                 for (const domain of Object.keys(rec as Record<string, string | string[]>)) {
                   if (!isValidDomainWildcard(domain).ok) {

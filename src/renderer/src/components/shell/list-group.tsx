@@ -183,7 +183,14 @@ Row.displayName = 'Row'
 // через htmlFor: нажатие по тексту по-прежнему переключает.
 export const SwitchRow: React.FC<
   BodyProps & {
-    checked: boolean
+    /**
+     * ⚠️ Допускается undefined. Почти все значения в конфиге необязательные,
+     * и на девяти строках из настроек ядра тип не сходился. Приводим здесь, в
+     * одном месте: иначе на каждой из 58 строк пришлось бы писать ?? false, и
+     * где-нибудь это забыли бы — а undefined у Radix означает «неуправляемый
+     * переключатель», то есть молча отвязанный от конфига.
+     */
+    checked: boolean | undefined
     onCheckedChange: (next: boolean) => void
     disabled?: boolean
     busy?: boolean
@@ -218,13 +225,13 @@ export const SwitchRow: React.FC<
       >
         <action.icon className="size-4" aria-hidden />
       </button>
-      <Switch id={id} checked={checked} onCheckedChange={onCheckedChange} disabled={disabled} />
+      <Switch id={id} checked={!!checked} onCheckedChange={onCheckedChange} disabled={disabled} />
     </div>
   ) : (
     <label className={cn(shell, 'cursor-pointer')}>
       <Body icon={icon} label={label} sub={sub} danger={danger} />
       {busy && <Spinner className="size-3.5 shrink-0 text-muted-foreground" />}
-      <Switch id={id} checked={checked} onCheckedChange={onCheckedChange} disabled={disabled} />
+      <Switch id={id} checked={!!checked} onCheckedChange={onCheckedChange} disabled={disabled} />
     </label>
   )
 }
@@ -299,7 +306,19 @@ export const FieldRow: React.FC<
   )
 }
 
-// ФОРМА 5 — сегменты, 13 мест. Выбор из двух-четырёх коротких значений.
+/**
+ * Длина всех подписей сегментов, после которой переключатель перестаёт
+ * помещаться рядом с подписью строки и переезжает под неё.
+ *
+ * ⚠️ Мера нужна. На экране DNS три значения — «Fake IP», «Реальный IP» и
+ * «Отключить сопоставление» — занимали почти всю ширину, и подписи строки
+ * оставалось шестьдесят пикселей: «Режим сопоставления доменов» сминался в
+ * три обрезанные строки. Порог в 24 символа оставляет подписи не меньше
+ * половины строки на минимальном окне 420px.
+ */
+const SEGMENTS_INLINE_LIMIT = 24
+
+// ФОРМА 5 — сегменты. Выбор из двух-четырёх коротких значений.
 export function SegmentRow<T extends string>({
   icon,
   label,
@@ -314,6 +333,46 @@ export function SegmentRow<T extends string>({
   onChange: (next: T) => void
   disabled?: boolean
 }): React.JSX.Element {
+  // Решает длина подписей, а не число значений: «Авто / Светлая / Тёмная»
+  // прекрасно живут в строке, а два длинных имени — уже нет.
+  const stacked =
+    options.reduce((sum, o) => sum + o.label.length, 0) > SEGMENTS_INLINE_LIMIT
+
+  if (stacked) {
+    return (
+      <div
+        className={cn(
+          'flex w-full flex-col gap-2 px-3 py-2.5 transition-colors',
+          disabled && 'pointer-events-none opacity-40'
+        )}
+      >
+        <div className="flex items-center gap-2.5">
+          <Body icon={icon} label={label} sub={sub} />
+        </div>
+        <div role="radiogroup" className="flex gap-0.5 rounded-lg bg-secondary p-0.5">
+          {options.map((o) => (
+            <button
+              key={o.value}
+              type="button"
+              role="radio"
+              aria-checked={o.value === value}
+              onClick={() => onChange(o.value)}
+              className={cn(
+                'flex-1 cursor-pointer truncate rounded-md px-2 py-1 text-xs leading-none transition-colors',
+                'outline-none focus-visible:ring-2 focus-visible:ring-primary',
+                o.value === value
+                  ? 'bg-card font-semibold text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              )}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className={cn(SHELL, sub ? H_TWO : H_ONE, disabled && 'pointer-events-none opacity-40')}>
       <Body icon={icon} label={label} sub={sub} />

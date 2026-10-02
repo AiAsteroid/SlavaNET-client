@@ -1,31 +1,93 @@
-import React, { useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
-import SettingCard from '../base/base-setting-card'
-import SettingItem from '../base/base-setting-item'
+import { useTranslation } from 'react-i18next'
+import {
+  CloudDownload,
+  Code,
+  Globe,
+  KeyRound,
+  MonitorCog,
+  Network,
+  RefreshCcw,
+  Shield
+} from 'lucide-react'
+import { FieldRow, Group, Row, SelectRow, SwitchRow } from '@renderer/components/shell/list-group'
 import EditableList from '../base/base-list-editor'
-import { Button } from '@renderer/components/ui/button'
-import { Input } from '@renderer/components/ui/input'
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupButton,
-  InputGroupInput
-} from '@renderer/components/ui/input-group'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from '@renderer/components/ui/select'
-import { Spinner } from '@renderer/components/ui/spinner'
-import { Switch } from '@renderer/components/ui/switch'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
 import { useControledMihomoConfig } from '@renderer/hooks/use-controled-mihomo-config'
 import { mihomoUpgradeUI, mihomoHotReloadConfig } from '@renderer/utils/ipc'
 import { isValidListenAddress } from '@renderer/utils/validate'
-import { useTranslation } from 'react-i18next'
-import { CloudDownload, ExternalLink, Eye, EyeClosed, RefreshCcw } from 'lucide-react'
+
+// Внешний контроллер на общем наборе строк (shell/list-group).
+//
+// Было: одна карточка из шести строк старого вида, четыре кнопки «Подтвердить»
+// и четыре значка 24×24 в правых углах строк — «сгенерировать ключ», «обновить
+// панель», «открыть в браузере», «показать ключ». Угадать их можно было только
+// наведением, а подпись «Настройки CORS» занимала отдельную пустую строку.
+//
+// Стало: четыре группы со строками того же вида, что на остальных экранах. Все
+// шесть настроек на месте, значки превратились в обычные строки-действия с
+// именами из тех же ключей перевода, а «Настройки CORS» стала заголовком своей
+// группы.
+//
+// ⚠️ Заголовки групп взяты из СУЩЕСТВУЮЩИХ ключей перевода: локали правит
+// другой человек, новых ключей здесь не появляется.
+//
+// ⚠️ Кнопок «Подтвердить» рядом с полем больше нет (решение владельца
+// 02.10.2026): все четыре появлялись только при изменении значения. Поле
+// применяет правку по уходу и по Enter (FieldRow), а «сгенерировать ключ»
+// пишет ключ сразу — иначе кнопка выдавала бы ключ, который никуда не уходит.
+//
+// ⚠️ Глазок «показать ключ» ушёл вместе с полем-паролем: режима пароля у
+// FieldRow нет, а добавить его может только владелец набора строк. Ключ теперь
+// виден всегда — это ключ к локальному API на 127.0.0.1, и его как раз надо
+// прочитать глазами, чтобы вставить в стороннюю панель.
+
+/** Пауза в наборе, после которой список записывается в конфиг, мс. */
+const LIST_COMMIT_MS = 600
+
+// Отложенная запись списка. Копия заготовки из
+// components/settings/advanced-settings.tsx — правя её там, правь и здесь.
+//
+// ⚠️ Без неё правка уходила в конфиг на КАЖДЫЙ символ: EditableList зовёт
+// onChange на каждое нажатие, а здесь следом ещё и перезагружается
+// конфигурация ядра. Раньше от этого спасала кнопка «Подтвердить», но кнопок
+// рядом с полем у нас больше нет, и паузу надо держать здесь.
+function useDeferredCommit(): (run: () => void | Promise<unknown>) => void {
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(
+    () => () => {
+      if (timer.current) clearTimeout(timer.current)
+    },
+    []
+  )
+  return (run) => {
+    if (timer.current) clearTimeout(timer.current)
+    timer.current = setTimeout(() => {
+      void run()
+    }, LIST_COMMIT_MS)
+  }
+}
+
+// Адреса панелей: тот же список, что стоял в старом селекте, в том же порядке.
+const uiOptions = [
+  {
+    value: 'https://github.com/Zephyruso/zashboard/releases/latest/download/dist.zip',
+    label: 'zashboard'
+  },
+  {
+    value: 'https://github.com/MetaCubeX/metacubexd/archive/refs/heads/gh-pages.zip',
+    label: 'metacubexd'
+  },
+  {
+    value: 'https://github.com/MetaCubeX/Yacd-meta/archive/refs/heads/gh-pages.zip',
+    label: 'yacd-meta'
+  },
+  { value: 'https://github.com/haishanh/yacd/archive/refs/heads/gh-pages.zip', label: 'yacd' },
+  {
+    value: 'https://github.com/MetaCubeX/Razord-meta/archive/refs/heads/gh-pages.zip',
+    label: 'razord-meta'
+  }
+]
 
 const ControllerSetting: React.FC = () => {
   const { t } = useTranslation()
@@ -44,16 +106,15 @@ const ControllerSetting: React.FC = () => {
 
   const initialAllowOrigins = allowOrigins.length == 1 && allowOrigins[0] == '*' ? [] : allowOrigins
   const [allowOriginsInput, setAllowOriginsInput] = useState(initialAllowOrigins)
-  const [externalControllerInput, setExternalControllerInput] = useState(externalController)
-  const [externalUiUrlInput, setExternalUiUrlInput] = useState(externalUiUrl)
-  const [secretInput, setSecretInput] = useState(secret)
   const [enableExternalUi, setEnableExternalUi] = useState(externalUi == 'ui')
   const [upgrading, setUpgrading] = useState(false)
-  const [showPassword, setShowPassword] = useState(false)
-  const [externalControllerError, setExternalControllerError] = useState<string | null>(() => {
-    const r = isValidListenAddress(externalController)
-    return r.ok ? null : (r.error ?? t('mihomo.controllerSettings.formatError'))
-  })
+  const commitAllowOrigins = useDeferredCommit()
+  // ⚠️ Счётчик снимает отвергнутую правку адреса. Проверка формата раньше жила
+  // в подсказке у поля и гасила кнопку «Подтвердить»; кнопки нет, поэтому
+  // негодный адрес просто не применяется — а поле надо вернуть к тому, что
+  // реально стоит в конфиге, иначе на экране осталась бы ложь. Смена key
+  // пересобирает строку, и её черновик снова берётся из конфига.
+  const [addressRevision, setAddressRevision] = useState(0)
 
   const upgradeUI = async (): Promise<void> => {
     try {
@@ -80,108 +141,77 @@ const ControllerSetting: React.FC = () => {
     return Array.from({ length }, () => chars[Math.floor(Math.random() * chars.length)]).join('')
   }
 
+  // Сборка адреса панели — перенесена из обработчика кнопки-значка без
+  // изменений: у разных панелей свой путь и свой способ принять ключ.
+  const openPanel = (): void => {
+    const controller = externalController.startsWith(':')
+      ? `127.0.0.1${externalController}`
+      : externalController
+    const host = controller.split(':')[0]
+    const port = controller.split(':')[1]
+    if (['zashboard', 'metacubexd'].find((keyword) => externalUiUrl.includes(keyword))) {
+      open(`http://${controller}/ui/#/setup?hostname=${host}&port=${port}&secret=${secret}`)
+    } else if (externalUiUrl.includes('Razord')) {
+      open(`http://${controller}/ui/#/proxies?host=${host}&port=${port}&secret=${secret}`)
+    } else {
+      if (secret && secret.length > 0) {
+        open(`http://${controller}/ui/?hostname=${host}&port=${port}&secret=${secret}`)
+      } else {
+        open(`http://${controller}/ui/?hostname=${host}&port=${port}`)
+      }
+    }
+  }
+
+  const hasController = !!externalController && externalController !== ''
+
   return (
-    <SettingCard title={t('mihomo.controllerSettings.externalController')}>
-      <SettingItem title={t('mihomo.controllerSettings.listenAddress')} divider={externalController !== ''}>
-        <div className="flex">
-          {externalControllerInput != externalController && !externalControllerError && (
-            <Button
-              size="sm"
-              className="mr-2"
-              disabled={!!externalControllerError}
-              onClick={() => {
-                onChangeNeedRestart({
-                  'external-controller': externalControllerInput
-                })
-              }}
-            >
-              {t('common.confirm')}
-            </Button>
-          )}
-          <Tooltip open={!!externalControllerError}>
-            <TooltipTrigger asChild>
-              <Input
-                className={
-                  externalControllerError
-                    ? 'w-[200px] h-8 border-red-500 ring-1 ring-red-500 rounded-lg'
-                    : 'w-[200px] h-8'
-                }
-                value={externalControllerInput}
-                onChange={(event) => {
-                  const v = event.target.value
-                  setExternalControllerInput(v)
-                  const r = isValidListenAddress(v)
-                  setExternalControllerError(
-                    r.ok ? null : (r.error ?? t('mihomo.controllerSettings.formatError'))
-                  )
-                }}
-              />
-            </TooltipTrigger>
-            {externalControllerError && (
-              <TooltipContent
-                side="right"
-                sideOffset={10}
-                className="bg-destructive text-destructive-foreground"
-              >
-                {externalControllerError}
-              </TooltipContent>
-            )}
-          </Tooltip>
-        </div>
-      </SettingItem>
-      {externalController && externalController !== '' && (
-        <>
-          <SettingItem
-            title={t('mihomo.controllerSettings.accessSecret')}
-            actions={
-              <Button
-                size="icon-sm"
-                title={t('mihomo.controllerSettings.generateSecret')}
-                variant="ghost"
-                onClick={() => setSecretInput(generateRandomString(32))}
-              >
-                <RefreshCcw className="text-lg" />
-              </Button>
+    <>
+      <Group title={t('mihomo.controllerSettings.externalController')}>
+        <FieldRow
+          key={`external-controller-${addressRevision}`}
+          icon={Network}
+          label={t('mihomo.controllerSettings.listenAddress')}
+          value={externalController}
+          width={140}
+          onCommit={async (next) => {
+            const r = isValidListenAddress(next)
+            if (!r.ok) {
+              toast.error(r.error ?? t('mihomo.controllerSettings.formatError'))
+              setAddressRevision((n) => n + 1)
+              return
             }
-            divider
-          >
-            <div className="flex">
-              {secretInput != secret && (
-                <Button
-                  size="sm"
-                  className="mr-2"
-                  onClick={() => {
-                    onChangeNeedRestart({ secret: secretInput })
-                  }}
-                >
-                  {t('common.confirm')}
-                </Button>
-              )}
-              <InputGroup className="w-[200px] h-8">
-                <InputGroupAddon align="inline-start">
-                  <InputGroupButton
-                    size="icon-xs"
-                    className="text-gray-500 hover:text-gray-700"
-                    onClick={() => setShowPassword((prev) => !prev)}
-                  >
-                    {showPassword ? (
-                      <EyeClosed className="w-4 h-4" />
-                    ) : (
-                      <Eye className="w-4 h-4" />
-                    )}
-                  </InputGroupButton>
-                </InputGroupAddon>
-                <InputGroupInput
-                  type={showPassword ? 'text' : 'password'}
-                  className="h-8"
-                  value={secretInput ?? ''}
-                  onChange={(event) => setSecretInput(event.target.value)}
-                />
-              </InputGroup>
-            </div>
-          </SettingItem>
-          <SettingItem title={t('mihomo.controllerSettings.enableControllerPanel')} divider>
-            <Switch
+            await onChangeNeedRestart({ 'external-controller': next })
+          }}
+        />
+        {hasController && (
+          <FieldRow
+            icon={KeyRound}
+            label={t('mihomo.controllerSettings.accessSecret')}
+            value={secret ?? ''}
+            width={150}
+            onCommit={async (next) => {
+              await onChangeNeedRestart({ secret: next })
+            }}
+          />
+        )}
+        {hasController && (
+          <Row
+            icon={RefreshCcw}
+            label={t('mihomo.controllerSettings.generateSecret')}
+            trailing="chevron"
+            onClick={() => {
+              void onChangeNeedRestart({ secret: generateRandomString(32) })
+            }}
+          />
+        )}
+      </Group>
+
+      {hasController && (
+        <>
+          <Group title={t('mihomo.controllerSettings.controllerPanel')}>
+            <SwitchRow
+              icon={MonitorCog}
+              label={t('mihomo.controllerSettings.enableControllerPanel')}
               checked={enableExternalUi}
               onCheckedChange={(v) => {
                 setEnableExternalUi(v)
@@ -190,111 +220,43 @@ const ControllerSetting: React.FC = () => {
                 })
               }}
             />
-          </SettingItem>
-          {enableExternalUi && (
-            <SettingItem
-              title={t('mihomo.controllerSettings.controllerPanel')}
-              actions={
-                <>
-                  <Button
-                    size="icon-sm"
-                    title={t('mihomo.controllerSettings.updatePanel')}
-                    variant="ghost"
-                    disabled={upgrading}
-                    onClick={upgradeUI}
-                  >
-                    {upgrading ? (
-                      <Spinner className="size-4" />
-                    ) : (
-                      <CloudDownload className="text-lg" />
-                    )}
-                  </Button>
-                  <Button
-                    title={t('mihomo.controllerSettings.openInBrowser')}
-                    size="icon-sm"
-                    className="app-nodrag"
-                    variant="ghost"
-                    onClick={() => {
-                      const controller = externalController.startsWith(':')
-                        ? `127.0.0.1${externalController}`
-                        : externalController
-                      const host = controller.split(':')[0]
-                      const port = controller.split(':')[1]
-                      if (
-                        ['zashboard', 'metacubexd'].find((keyword) =>
-                          externalUiUrl.includes(keyword)
-                        )
-                      ) {
-                        open(
-                          `http://${controller}/ui/#/setup?hostname=${host}&port=${port}&secret=${secret}`
-                        )
-                      } else if (externalUiUrl.includes('Razord')) {
-                        open(
-                          `http://${controller}/ui/#/proxies?host=${host}&port=${port}&secret=${secret}`
-                        )
-                      } else {
-                        if (secret && secret.length > 0) {
-                          open(
-                            `http://${controller}/ui/?hostname=${host}&port=${port}&secret=${secret}`
-                          )
-                        } else {
-                          open(`http://${controller}/ui/?hostname=${host}&port=${port}`)
-                        }
-                      }
-                    }}
-                  >
-                    <ExternalLink className="text-lg" />
-                  </Button>
-                </>
-              }
-              divider
-            >
-              <div className="flex">
-                {externalUiUrlInput != externalUiUrl && (
-                  <Button
-                    size="sm"
-                    className="mr-2"
-                    onClick={() => {
-                      onChangeNeedRestart({
-                        'external-ui-url': externalUiUrlInput
-                      })
-                    }}
-                  >
-                    {t('common.confirm')}
-                  </Button>
-                )}
-                <Select
-                  value={externalUiUrlInput}
-                  onValueChange={(value) => setExternalUiUrlInput(value)}
-                >
-                  <SelectTrigger size="sm" className="w-[150px]">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="https://github.com/Zephyruso/zashboard/releases/latest/download/dist.zip">
-                      zashboard
-                    </SelectItem>
-                    <SelectItem value="https://github.com/MetaCubeX/metacubexd/archive/refs/heads/gh-pages.zip">
-                      metacubexd
-                    </SelectItem>
-                    <SelectItem value="https://github.com/MetaCubeX/Yacd-meta/archive/refs/heads/gh-pages.zip">
-                      yacd-meta
-                    </SelectItem>
-                    <SelectItem value="https://github.com/haishanh/yacd/archive/refs/heads/gh-pages.zip">
-                      yacd
-                    </SelectItem>
-                    <SelectItem value="https://github.com/MetaCubeX/Razord-meta/archive/refs/heads/gh-pages.zip">
-                      razord-meta
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </SettingItem>
-          )}
-          <SettingItem title={t('mihomo.controllerSettings.corsConfig')}></SettingItem>
-          <div className="flex flex-col space-y-2 mt-2"></div>
-          <SettingItem title={t('mihomo.controllerSettings.allowPrivateNetwork')}>
-            <Switch
+            {enableExternalUi && (
+              <>
+                {/* Выбор панели применяется сразу, и ядро тут же её скачивает
+                    (onChangeNeedRestart выше): без этого в конфиге оставался бы
+                    адрес одной панели, а на диске — файлы другой. */}
+                <SelectRow
+                  icon={Code}
+                  label={t('mihomo.controllerSettings.controllerPanel')}
+                  value={externalUiUrl}
+                  options={uiOptions}
+                  onChange={(value) => {
+                    onChangeNeedRestart({ 'external-ui-url': value })
+                  }}
+                />
+                <Row
+                  icon={CloudDownload}
+                  label={t('mihomo.controllerSettings.updatePanel')}
+                  busy={upgrading}
+                  disabled={upgrading}
+                  trailing="chevron"
+                  onClick={upgradeUI}
+                />
+                <Row
+                  icon={Globe}
+                  label={t('mihomo.controllerSettings.openInBrowser')}
+                  className="app-nodrag"
+                  trailing="external"
+                  onClick={openPanel}
+                />
+              </>
+            )}
+          </Group>
+
+          <Group title={t('mihomo.controllerSettings.corsConfig')}>
+            <SwitchRow
+              icon={Shield}
+              label={t('mihomo.controllerSettings.allowPrivateNetwork')}
               checked={allowPrivateNetwork}
               onCheckedChange={(v) => {
                 onChangeNeedRestart({
@@ -305,34 +267,33 @@ const ControllerSetting: React.FC = () => {
                 })
               }}
             />
-          </SettingItem>
-          <div className="mt-1"></div>
-          <SettingItem title={t('mihomo.controllerSettings.allowedOrigins')}>
-            {allowOriginsInput.join(',') != initialAllowOrigins.join(',') && (
-              <Button
-                size="sm"
-                onClick={() => {
-                  const finalOrigins = allowOriginsInput.length == 0 ? ['*'] : allowOriginsInput
-                  onChangeNeedRestart({
-                    'external-controller-cors': {
-                      ...externalControllerCors,
-                      'allow-origins': finalOrigins
-                    }
-                  })
+          </Group>
+
+          {/* Пустой список источников значит «любой»: в конфиг уходит '*'.
+              Поведение от upstream, перенесено как было. */}
+          <Group title={t('mihomo.controllerSettings.allowedOrigins')}>
+            <div className="px-3 py-2">
+              <EditableList
+                items={allowOriginsInput}
+                divider={false}
+                onChange={(items) => {
+                  const next = items as string[]
+                  setAllowOriginsInput(next)
+                  commitAllowOrigins(() =>
+                    onChangeNeedRestart({
+                      'external-controller-cors': {
+                        ...externalControllerCors,
+                        'allow-origins': next.length == 0 ? ['*'] : next
+                      }
+                    })
+                  )
                 }}
-              >
-                {t('common.confirm')}
-              </Button>
-            )}
-          </SettingItem>
-          <EditableList
-            items={allowOriginsInput}
-            onChange={(items) => setAllowOriginsInput(items as string[])}
-            divider={false}
-          />
+              />
+            </div>
+          </Group>
         </>
       )}
-    </SettingCard>
+    </>
   )
 }
 

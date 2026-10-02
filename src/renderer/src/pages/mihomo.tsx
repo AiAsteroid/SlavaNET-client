@@ -1,27 +1,37 @@
+import React, { useState, useEffect } from 'react'
 import { toast } from 'sonner'
-import { Button } from '@renderer/components/ui/button'
-import { Input } from '@renderer/components/ui/input'
+import { useTranslation } from 'react-i18next'
+import PubSub from 'pubsub-js'
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from '@renderer/components/ui/select'
-import { Spinner } from '@renderer/components/ui/spinner'
-import { Switch } from '@renderer/components/ui/switch'
-import { Tabs, TabsList, TabsTrigger } from '@renderer/components/ui/tabs'
+  Clock,
+  CloudDownload,
+  Cpu,
+  FileText,
+  FolderOpen,
+  Globe,
+  KeyRound,
+  MonitorCog,
+  Shield
+} from 'lucide-react'
 import BasePage from '@renderer/components/base/base-page'
-import SettingCard from '@renderer/components/base/base-setting-card'
-import SettingItem from '@renderer/components/base/base-setting-item'
 import ConfirmModal, { ConfirmButton } from '@renderer/components/base/base-confirm'
+import {
+  FieldRow,
+  Group,
+  Row,
+  SegmentRow,
+  SelectRow,
+  SwitchRow
+} from '@renderer/components/shell/list-group'
 import PermissionModal from '@renderer/components/mihomo/permission-modal'
 import ServiceModal from '@renderer/components/mihomo/service-modal'
+import PortSetting from '@renderer/components/mihomo/port-setting'
+import ControllerSetting from '@renderer/components/mihomo/controller-setting'
+import EnvSetting from '@renderer/components/mihomo/env-setting'
+import AdvancedSetting from '@renderer/components/mihomo/advanced-settings'
 import { useAppConfig } from '@renderer/hooks/use-app-config'
 import { useControledMihomoConfig } from '@renderer/hooks/use-controled-mihomo-config'
-import PortSetting from '@renderer/components/mihomo/port-setting'
 import { platform } from '@renderer/utils/init'
-import PubSub from 'pubsub-js'
 import {
   manualGrantCorePermition,
   mihomoUpgrade,
@@ -40,12 +50,6 @@ import {
   initService,
   restartService
 } from '@renderer/utils/ipc'
-import React, { useState, useEffect } from 'react'
-import ControllerSetting from '@renderer/components/mihomo/controller-setting'
-import EnvSetting from '@renderer/components/mihomo/env-setting'
-import AdvancedSetting from '@renderer/components/mihomo/advanced-settings'
-import { useTranslation } from 'react-i18next'
-import { CloudDownload } from 'lucide-react'
 
 let systemCorePathsCache: string[] | null = null
 let cachePromise: Promise<string[]> | null = null
@@ -70,6 +74,22 @@ const getSystemCorePaths = async (): Promise<string[]> => {
 
 getSystemCorePaths().catch(() => {})
 
+// Настройки ядра на общем наборе строк (shell/list-group) — самый большой набор
+// в приложении: сорок настроек на пяти файлах.
+//
+// Было: пять карточек старого вида подряд. Только на этой странице — девять
+// строк, в которых значок-действие ютился в углу («обновить ядро»), а кнопка
+// «Управление» ничем не отличалась от соседнего селекта. Стало: четыре группы
+// со строками того же вида, что на остальных экранах, а порты, контроллер,
+// переменные окружения и расширенные настройки приносят свои группы сами.
+//
+// ⚠️ Обёртку с отступами (px-4 pt-1) ставит страница, а не компоненты внутри:
+// иначе у пяти наборов групп разъехались бы боковые поля.
+//
+// ⚠️ Заголовки групп взяты из СУЩЕСТВУЮЩИХ ключей перевода: локали правит
+// другой человек, новых ключей здесь не появляется. Первые две группы остались
+// без заголовка — подходящего ключа на «Ядро» и «Права» в локалях нет, а
+// заводить новый нельзя.
 const Mihomo: React.FC = () => {
   const { t } = useTranslation()
   const { appConfig, patchAppConfig } = useAppConfig()
@@ -228,6 +248,12 @@ const Mihomo: React.FC = () => {
     { value: 'debug', label: t('pages.mihomo.debug') }
   ]
 
+  const coreOptions: { value: 'mihomo' | 'mihomo-alpha' | 'system'; label: string }[] = [
+    { value: 'mihomo', label: t('pages.mihomo.builtinStable') },
+    { value: 'mihomo-alpha', label: t('pages.mihomo.builtinPreview') },
+    { value: 'system', label: t('pages.mihomo.useSystemCore') }
+  ]
+
   return (
     <BasePage title={t('pages.mihomo.title')}>
       {showGrantConfirm && (
@@ -306,161 +332,145 @@ const Mihomo: React.FC = () => {
           }}
         />
       )}
-      <SettingCard>
-        <SettingItem
-          title={t('pages.mihomo.coreVersion')}
-          actions={
-            core === 'mihomo' || core === 'mihomo-alpha' ? (
-              <Button
-                size="icon-sm"
-                title={t('pages.mihomo.upgradeCore')}
-                variant="ghost"
-                disabled={upgrading}
-                aria-busy={upgrading}
-                onClick={handleCoreUpgrade}
-              >
-                {upgrading ? (
-                  <Spinner className="size-4" />
-                ) : (
-                  <CloudDownload className="text-lg" />
-                )}
-              </Button>
-            ) : null
-          }
-          divider
-        >
-          <Select
+
+      <div className="px-4 pt-1">
+        <Group>
+          <SelectRow
+            icon={Cpu}
+            label={t('pages.mihomo.coreVersion')}
             value={core}
-            onValueChange={(value) =>
-              handleCoreChange(value as 'mihomo' | 'mihomo-alpha' | 'system')
+            options={coreOptions}
+            onChange={handleCoreChange}
+          />
+          {/* Путь к системному ядру. Три состояния вместо одного селекта с
+              подменённым текстом-заглушкой: пока ищем — строка со спиннером,
+              не нашли — строка с предупреждением во второй строке, нашли —
+              обычный выбор. Ключи перевода те же, что были у заглушки. */}
+          {core === 'system' &&
+            (loadingPaths ? (
+              <Row
+                icon={FolderOpen}
+                label={t('pages.mihomo.systemCorePath')}
+                value={t('pages.mihomo.searchingCore')}
+                busy
+              />
+            ) : systemCorePaths.length === 0 ? (
+              <Row
+                icon={FolderOpen}
+                label={t('pages.mihomo.systemCorePath')}
+                sub={t('pages.mihomo.coreNotFoundWarning')}
+                value={t('pages.mihomo.coreNotFound')}
+              />
+            ) : (
+              <SelectRow
+                icon={FolderOpen}
+                label={t('pages.mihomo.systemCorePath')}
+                value={appConfig?.systemCorePath ?? ''}
+                options={systemCorePaths.map((path) => ({ value: path, label: path }))}
+                onChange={(value) => {
+                  if (value) handleConfigChangeWithRestart('systemCorePath', value)
+                }}
+              />
+            ))}
+          {/* Обновление ядра раньше было значком 24×24 в углу строки с версией:
+              что он делает, можно было узнать только наведением. Системному
+              ядру обновляться нечем — мы его не ставили. */}
+          {(core === 'mihomo' || core === 'mihomo-alpha') && (
+            <Row
+              icon={CloudDownload}
+              label={t('pages.mihomo.upgradeCore')}
+              busy={upgrading}
+              disabled={upgrading}
+              trailing="chevron"
+              onClick={handleCoreUpgrade}
+            />
+          )}
+        </Group>
+
+        <Group>
+          {/* ⚠️ «Системная служба» в upstream выключена (у вкладки стоял
+              disabled): она не доделана, см. mihomo.serviceModal.description4.
+              У сегментов нет отключения ОТДЕЛЬНОГО значения, поэтому запрет
+              переехал в обработчик — нажатие по ней по-прежнему ничего не
+              делает. Убирать значение нельзя: о режиме надо знать, что он
+              есть. */}
+          <SegmentRow
+            icon={Shield}
+            label={t('pages.mihomo.runningMode')}
+            value={corePermissionMode}
+            options={[
+              {
+                value: 'elevated',
+                label:
+                  platform === 'win32'
+                    ? t('pages.mihomo.taskSchedule')
+                    : t('pages.mihomo.authorizedRun')
+              },
+              { value: 'service', label: t('pages.mihomo.systemService') }
+            ]}
+            onChange={(value) => {
+              if (value === 'service') return
+              void handlePermissionModeChange(value)
+            }}
+          />
+          <Row
+            icon={KeyRound}
+            label={
+              platform === 'win32' ? t('pages.mihomo.taskStatus') : t('pages.mihomo.authStatus')
             }
-          >
-            <SelectTrigger size="sm" className="w-[300px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="mihomo">{t('pages.mihomo.builtinStable')}</SelectItem>
-              <SelectItem value="mihomo-alpha">{t('pages.mihomo.builtinPreview')}</SelectItem>
-              <SelectItem value="system">{t('pages.mihomo.useSystemCore')}</SelectItem>
-            </SelectContent>
-          </Select>
-        </SettingItem>
-        {core === 'system' && (
-          <SettingItem title={t('pages.mihomo.systemCorePath')} divider>
-            <Select
-              value={appConfig?.systemCorePath}
-              disabled={loadingPaths}
-              onValueChange={(value) => {
-                if (value) handleConfigChangeWithRestart('systemCorePath', value)
-              }}
-            >
-              <SelectTrigger size="sm" className="w-[350px]">
-                <SelectValue
-                  placeholder={
-                    loadingPaths
-                      ? t('pages.mihomo.searchingCore')
-                      : t('pages.mihomo.coreNotFound')
-                  }
-                />
-              </SelectTrigger>
-              <SelectContent>
-                {loadingPaths ? (
-                  <SelectItem value="">{t('pages.mihomo.searchingCore')}</SelectItem>
-                ) : systemCorePaths.length > 0 ? (
-                  systemCorePaths.map((path) => (
-                    <SelectItem key={path} value={path}>
-                      {path}
-                    </SelectItem>
-                  ))
-                ) : (
-                  <SelectItem value="">{t('pages.mihomo.coreNotFound')}</SelectItem>
-                )}
-              </SelectContent>
-            </Select>
-            {!loadingPaths && systemCorePaths.length === 0 && (
-              <div className="mt-2 text-sm text-warning">
-                {t('pages.mihomo.coreNotFoundWarning')}
-              </div>
-            )}
-          </SettingItem>
-        )}
-        <SettingItem title={t('pages.mihomo.runningMode')} divider>
-          <Tabs value={corePermissionMode} onValueChange={handlePermissionModeChange}>
-            <TabsList>
-              <TabsTrigger value="elevated">
-                {platform === 'win32'
-                  ? t('pages.mihomo.taskSchedule')
-                  : t('pages.mihomo.authorizedRun')}
-              </TabsTrigger>
-              <TabsTrigger value="service" disabled>
-                {t('pages.mihomo.systemService')}
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
-        </SettingItem>
-        <SettingItem
-          title={platform === 'win32' ? t('pages.mihomo.taskStatus') : t('pages.mihomo.authStatus')}
-          divider
-        >
-          <Button size="sm" onClick={() => setShowPermissionModal(true)}>
-            {t('pages.mihomo.manage')}
-          </Button>
-        </SettingItem>
-        <SettingItem title={t('pages.mihomo.serviceStatus')} divider>
-          <Button size="sm" onClick={() => setShowServiceModal(true)}>
-            {t('pages.mihomo.manage')}
-          </Button>
-        </SettingItem>
-        <SettingItem title="IPv6" divider>
-          <Switch
-            checked={ipv6}
+            trailing="chevron"
+            onClick={() => setShowPermissionModal(true)}
+          />
+          <Row
+            icon={MonitorCog}
+            label={t('pages.mihomo.serviceStatus')}
+            trailing="chevron"
+            onClick={() => setShowServiceModal(true)}
+          />
+        </Group>
+
+        <Group title={t('pages.settings.groupConnection')}>
+          <SwitchRow
+            icon={Globe}
+            label="IPv6"
+            checked={ipv6 ?? false}
             onCheckedChange={(v) => onChangeNeedRestart({ ipv6: v })}
           />
-        </SettingItem>
-        <SettingItem title={t('pages.mihomo.logRetentionDays')} divider>
-          <Input
-            type="number"
-            className="h-8 w-[100px]"
+        </Group>
+
+        <Group title={t('pages.more.diagnostics.logs')}>
+          <FieldRow
+            icon={Clock}
+            label={t('pages.mihomo.logRetentionDays')}
             value={maxLogDays.toString()}
-            onChange={(event) =>
-              patchAppConfig({ maxLogDays: parseInt(event.target.value) })
-            }
+            width={72}
+            inputMode="numeric"
+            onCommit={async (next) => {
+              // ⚠️ Раньше поле писало результат parseInt как есть, и пустое
+              // поле уносило в конфиг NaN. Ноль оставлен: он был достижим и
+              // раньше и значит «логи не хранить».
+              let num = parseInt(next)
+              if (isNaN(num) || num < 0) num = 0
+              await patchAppConfig({ maxLogDays: num })
+            }}
           />
-        </SettingItem>
-        <SettingItem title={t('pages.mihomo.logLevel')}>
-          {/* Скрытые копии всех вариантов задают ширину по самому длинному из них */}
-          <div className="grid">
-            {logLevelOptions.map((option) => (
-              <span
-                key={option.value}
-                aria-hidden
-                className="col-start-1 row-start-1 h-0 overflow-hidden border border-transparent pl-3 pr-9 text-sm whitespace-nowrap invisible"
-              >
-                {option.label}
-              </span>
-            ))}
-            <Select
-              value={logLevel}
-              onValueChange={(value) => onChangeNeedRestart({ 'log-level': value as LogLevel })}
-            >
-              <SelectTrigger size="sm" className="col-start-1 row-start-1 w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {logLevelOptions.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </SettingItem>
-      </SettingCard>
-      <PortSetting />
-      <ControllerSetting />
-      <EnvSetting />
-      <AdvancedSetting />
+          {/* Хитрость с невидимыми копиями вариантов больше не нужна: ширину
+              строке задаёт сам набор, а значение стоит справа и обрезается им
+              же. */}
+          <SelectRow
+            icon={FileText}
+            label={t('pages.mihomo.logLevel')}
+            value={logLevel}
+            options={logLevelOptions}
+            onChange={(value) => onChangeNeedRestart({ 'log-level': value })}
+          />
+        </Group>
+
+        <PortSetting />
+        <ControllerSetting />
+        <EnvSetting />
+        <AdvancedSetting />
+      </div>
     </BasePage>
   )
 }
