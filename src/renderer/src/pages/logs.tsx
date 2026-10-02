@@ -1,4 +1,5 @@
 import BasePage from '@renderer/components/base/base-page'
+import { listScroll } from '@renderer/components/base/nav-spacer'
 import LogItem from '@renderer/components/logs/log-item'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Button } from '@renderer/components/ui/button'
@@ -60,8 +61,10 @@ const Logs: React.FC = () => {
   }, [])
 
   return (
-    <BasePage title={t('pages.logs.title')}>
-      <div className="sticky top-0 z-40">
+    // scrolls={false}: прокрутка здесь своя, внутри Virtuoso. Пока прокручивала
+    // ещё и оболочка, их было две и список не долистывался — см. base-page.tsx.
+    <BasePage title={t('pages.logs.title')} scrolls={false}>
+      <div className="shrink-0">
         <div className="w-full flex px-2 pb-2">
           <Input
             className="h-8 text-sm"
@@ -93,9 +96,10 @@ const Logs: React.FC = () => {
         </div>
         <Separator className="mx-2" />
       </div>
-      <div className="h-full mt-px">
+      <div className="mt-px min-h-0 flex-1">
         <Virtuoso
           ref={virtuosoRef}
+          {...listScroll}
           data={filteredLogs}
           initialItemCount={Math.min(filteredLogs.length, 15)}
           followOutput={trace}

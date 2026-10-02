@@ -20,6 +20,16 @@ interface Props {
   contentClassName?: string
   /** Кнопка «назад». Раньше выводилась по списку «страниц сайдбара»; сайдбара нет. */
   showBackButton?: boolean
+  /**
+   * Прокручивает ли оболочка содержимое сама.
+   *
+   * ⚠️ false нужен экранам со списком на Virtuoso: прокрутка там своя, внутри
+   * списка. Пока оболочка прокручивала тоже, их было ДВЕ — внешняя ровно на
+   * высоту панели фильтров, внутренняя своя, — и список нельзя было
+   * долистать до конца. Такие экраны сами отвечают за резерв под капсулу и
+   * за растворение края: мы к их скроллеру доступа не имеем.
+   */
+  scrolls?: boolean
 }
 
 // Общая обёртка страниц, открытых из «Ещё».
@@ -44,6 +54,7 @@ const BasePage = forwardRef<HTMLDivElement, Props>((props, ref) => {
   const navigate = useNavigate()
   const location = useLocation()
   const showBack = props.showBackButton ?? !tabPaths.has(location.pathname)
+  const scrolls = props.scrolls ?? true
 
   const contentRef = useRef<HTMLDivElement>(null)
   useImperativeHandle(ref, () => {
@@ -80,14 +91,19 @@ const BasePage = forwardRef<HTMLDivElement, Props>((props, ref) => {
       <div
         ref={scrollRef}
         className={cn(
-          'content sn-scroll min-h-0 flex-1 overflow-y-auto',
-          overflowing && 'sn-fade-bottom',
+          'content min-h-0 flex-1',
+          scrolls ? 'sn-scroll overflow-y-auto' : 'flex flex-col overflow-hidden',
+          scrolls && overflowing && 'sn-fade-bottom',
           props.contentClassName
         )}
-        style={{
-          marginBottom: 'var(--nav-gap)',
-          paddingBottom: 'calc(var(--nav-space) - var(--nav-gap))'
-        }}
+        style={
+          scrolls
+            ? {
+                marginBottom: 'var(--nav-gap)',
+                paddingBottom: 'calc(var(--nav-space) - var(--nav-gap))'
+              }
+            : undefined
+        }
       >
         {props.children}
       </div>

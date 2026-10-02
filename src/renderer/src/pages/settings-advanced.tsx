@@ -12,7 +12,7 @@ const SettingsSection: React.FC = () => {
   const { t } = useTranslation()
   return (
     <BasePage title={t('settings.advanced.title')}>
-      <div className="pt-1">
+      <div className="px-4 pt-1">
         <AdvancedSettings showHiddenSettings={hiddenSettingsUnlocked()} />
       </div>
     </BasePage>

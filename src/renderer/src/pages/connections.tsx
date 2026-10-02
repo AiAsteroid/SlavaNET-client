@@ -1,4 +1,5 @@
 import BasePage from '@renderer/components/base/base-page'
+import { listScroll } from '@renderer/components/base/nav-spacer'
 import { mihomoCloseAllConnections, mihomoCloseConnection } from '@renderer/utils/ipc'
 import { useConnectionsStore } from '@renderer/store/connections-store'
 import React, { useCallback, useMemo, useState } from 'react'
@@ -519,7 +520,10 @@ const Connections: React.FC = () => {
   )
 
   return (
+    // scrolls={false}: прокрутка своя, внутри Virtuoso и внутри таблицы —
+    // см. base-page.tsx.
     <BasePage
+      scrolls={false}
       title={title}
       header={
         <div className="flex items-center gap-1">
@@ -613,7 +617,7 @@ const Connections: React.FC = () => {
       {isSettingModalOpen && (
         <ConnectionSettingModal onClose={() => setIsSettingModalOpen(false)} />
       )}
-      <div className="overflow-x-auto sticky top-0 z-40">
+      <div className="shrink-0 overflow-x-auto">
         <div className="flex px-2 pb-2 gap-2">
           {isProcessListView ? (
             <>
@@ -762,18 +766,26 @@ const Connections: React.FC = () => {
           )}
         </div>
       </div>
-      <div className="h-full mt-px mb-2">
+      <div className="mt-px mb-2 min-h-0 flex-1">
         {isProcessListView ? (
           filteredProcessGroups.length === 0 ? (
             processesEmptyState
           ) : (
-            <Virtuoso data={filteredProcessGroups} itemContent={renderProcessItem} />
+            <Virtuoso
+              {...listScroll}
+              data={filteredProcessGroups}
+              itemContent={renderProcessItem}
+            />
           )
         ) : viewMode === 'list' ? (
           filteredConnections.length === 0 ? (
             connectionsEmptyState
           ) : (
-            <Virtuoso data={filteredConnections} itemContent={renderConnectionItem} />
+            <Virtuoso
+              {...listScroll}
+              data={filteredConnections}
+              itemContent={renderConnectionItem}
+            />
           )
         ) : (
           <ConnectionTable

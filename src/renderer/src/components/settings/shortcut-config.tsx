@@ -1,13 +1,23 @@
+import React, { KeyboardEvent, useEffect, useState } from 'react'
 import { toast } from 'sonner'
-import { Button } from '@renderer/components/ui/button'
-import { Kbd, KbdGroup } from '@renderer/components/ui/kbd'
 import { useTranslation } from 'react-i18next'
-import SettingCard from '../base/base-setting-card'
-import SettingItem from '../base/base-setting-item'
+import {
+  AppWindow,
+  Globe,
+  ListTree,
+  LogOut,
+  Network,
+  PictureInPicture2,
+  RotateCcw,
+  Unplug
+} from 'lucide-react'
+import { Kbd, KbdGroup } from '@renderer/components/ui/kbd'
+import { Spinner } from '@renderer/components/ui/spinner'
+import { Group } from '@renderer/components/shell/list-group'
 import { useAppConfig } from '@renderer/hooks/use-app-config'
-import React, { KeyboardEvent, useState, useEffect } from 'react'
 import { platform } from '@renderer/utils/init'
 import { registerShortcut } from '@renderer/utils/ipc'
+import { cn } from '@renderer/lib/utils'
 
 const keyMap = {
   Backquote: '`',
@@ -42,10 +52,16 @@ const keyMap = {
   Suspend: 'Suspend'
 }
 
+// Горячие клавиши, девять штук, на общем наборе строк (shell/list-group).
+//
+// Раньше это была одна плоская карточка из девяти безымянных строк: окно,
+// плавающее окно, прокси, TUN, три режима маршрутизации и два выхода лежали
+// подряд, и глазу было не за что зацепиться. Теперь те же девять разбиты на
+// четыре группы по смыслу, заголовки взяты из существующих ключей перевода —
+// новых ключей здесь не заводится, локали правит другой человек.
 const ShortcutConfig: React.FC = () => {
   const { t } = useTranslation()
   const { appConfig, patchAppConfig } = useAppConfig()
-  const [activeAction, setActiveAction] = useState<string | null>(null)
   const {
     showWindowShortcut = '',
     showFloatingWindowShortcut = '',
@@ -59,132 +75,143 @@ const ShortcutConfig: React.FC = () => {
   } = appConfig || {}
 
   return (
-    <SettingCard title={t('settings.shortcuts.title')}>
-      <SettingItem title={t('settings.shortcuts.toggleWindow')} divider>
-        <div className="flex justify-end w-[60%]">
-          <ShortcutInput
-            value={showWindowShortcut}
-            patchAppConfig={patchAppConfig}
-            action="showWindowShortcut"
-            activeAction={activeAction}
-            setActiveAction={setActiveAction}
-          />
-        </div>
-      </SettingItem>
-      <SettingItem title={t('settings.shortcuts.toggleFloatingWindow')} divider>
-        <div className="flex justify-end w-[60%]">
-          <ShortcutInput
-            value={showFloatingWindowShortcut}
-            patchAppConfig={patchAppConfig}
-            action="showFloatingWindowShortcut"
-            activeAction={activeAction}
-            setActiveAction={setActiveAction}
-          />
-        </div>
-      </SettingItem>
-      <SettingItem title={t('settings.shortcuts.toggleSysProxy')} divider>
-        <div className="flex justify-end w-[60%]">
-          <ShortcutInput
-            value={triggerSysProxyShortcut}
-            patchAppConfig={patchAppConfig}
-            action="triggerSysProxyShortcut"
-            activeAction={activeAction}
-            setActiveAction={setActiveAction}
-          />
-        </div>
-      </SettingItem>
-      <SettingItem title={t('settings.shortcuts.toggleTun')} divider>
-        <div className="flex justify-end w-[60%]">
-          <ShortcutInput
-            value={triggerTunShortcut}
-            patchAppConfig={patchAppConfig}
-            action="triggerTunShortcut"
-            activeAction={activeAction}
-            setActiveAction={setActiveAction}
-          />
-        </div>
-      </SettingItem>
-      <SettingItem title={t('settings.shortcuts.switchRuleMode')} divider>
-        <div className="flex justify-end w-[60%]">
-          <ShortcutInput
-            value={ruleModeShortcut}
-            patchAppConfig={patchAppConfig}
-            action="ruleModeShortcut"
-            activeAction={activeAction}
-            setActiveAction={setActiveAction}
-          />
-        </div>
-      </SettingItem>
-      <SettingItem title={t('settings.shortcuts.switchGlobalMode')} divider>
-        <div className="flex justify-end w-[60%]">
-          <ShortcutInput
-            value={globalModeShortcut}
-            patchAppConfig={patchAppConfig}
-            action="globalModeShortcut"
-            activeAction={activeAction}
-            setActiveAction={setActiveAction}
-          />
-        </div>
-      </SettingItem>
-      <SettingItem title={t('settings.shortcuts.switchDirectMode')} divider>
-        <div className="flex justify-end w-[60%]">
-          <ShortcutInput
-            value={directModeShortcut}
-            patchAppConfig={patchAppConfig}
-            action="directModeShortcut"
-            activeAction={activeAction}
-            setActiveAction={setActiveAction}
-          />
-        </div>
-      </SettingItem>
-      <SettingItem title={t('settings.shortcuts.quitKeepCore')} divider>
-        <div className="flex justify-end w-[60%]">
-          <ShortcutInput
-            value={quitWithoutCoreShortcut}
-            patchAppConfig={patchAppConfig}
-            action="quitWithoutCoreShortcut"
-            activeAction={activeAction}
-            setActiveAction={setActiveAction}
-          />
-        </div>
-      </SettingItem>
-      <SettingItem title={t('settings.shortcuts.restartApp')}>
-        <div className="flex justify-end w-[60%]">
-          <ShortcutInput
-            value={restartAppShortcut}
-            patchAppConfig={patchAppConfig}
-            action="restartAppShortcut"
-            activeAction={activeAction}
-            setActiveAction={setActiveAction}
-          />
-        </div>
-      </SettingItem>
-    </SettingCard>
+    <>
+      <Group title={t('pages.settings.groupApp')}>
+        <ShortcutRow
+          icon={AppWindow}
+          label={t('settings.shortcuts.toggleWindow')}
+          value={showWindowShortcut}
+          action="showWindowShortcut"
+          patchAppConfig={patchAppConfig}
+        />
+        <ShortcutRow
+          icon={PictureInPicture2}
+          label={t('settings.shortcuts.toggleFloatingWindow')}
+          value={showFloatingWindowShortcut}
+          action="showFloatingWindowShortcut"
+          patchAppConfig={patchAppConfig}
+        />
+      </Group>
+
+      <Group title={t('pages.settings.groupConnection')}>
+        <ShortcutRow
+          icon={Globe}
+          label={t('settings.shortcuts.toggleSysProxy')}
+          value={triggerSysProxyShortcut}
+          action="triggerSysProxyShortcut"
+          patchAppConfig={patchAppConfig}
+        />
+        <ShortcutRow
+          icon={Network}
+          label={t('settings.shortcuts.toggleTun')}
+          value={triggerTunShortcut}
+          action="triggerTunShortcut"
+          patchAppConfig={patchAppConfig}
+        />
+      </Group>
+
+      <Group title={t('pages.more.app.routing')}>
+        <ShortcutRow
+          icon={ListTree}
+          label={t('settings.shortcuts.switchRuleMode')}
+          value={ruleModeShortcut}
+          action="ruleModeShortcut"
+          patchAppConfig={patchAppConfig}
+        />
+        <ShortcutRow
+          icon={Globe}
+          label={t('settings.shortcuts.switchGlobalMode')}
+          value={globalModeShortcut}
+          action="globalModeShortcut"
+          patchAppConfig={patchAppConfig}
+        />
+        <ShortcutRow
+          icon={Unplug}
+          label={t('settings.shortcuts.switchDirectMode')}
+          value={directModeShortcut}
+          action="directModeShortcut"
+          patchAppConfig={patchAppConfig}
+        />
+      </Group>
+
+      <Group title={t('pages.settings.groupMaintenance')}>
+        <ShortcutRow
+          icon={LogOut}
+          label={t('settings.shortcuts.quitKeepCore')}
+          value={quitWithoutCoreShortcut}
+          action="quitWithoutCoreShortcut"
+          patchAppConfig={patchAppConfig}
+        />
+        <ShortcutRow
+          icon={RotateCcw}
+          label={t('settings.shortcuts.restartApp')}
+          value={restartAppShortcut}
+          action="restartAppShortcut"
+          patchAppConfig={patchAppConfig}
+        />
+      </Group>
+    </>
   )
 }
 
-const ShortcutInput: React.FC<{
+// ⚠️ Геометрия строки списана с FieldRow (shell/list-group): высота 40, те же
+// отступы и тот же зазор. Константы SHELL/H_ONE оттуда не экспортируются, и
+// копия здесь — единственный способ не разъехаться с остальными формами
+// строки. Правя их там, правь и здесь.
+// Геометрия повторяет SHELL/H_ONE из набора строк: min-h, чтобы длинная
+// подпись переносилась, а не обрезалась посередине слова.
+const ROW = 'flex min-h-10 w-full items-center gap-2.5 px-3 py-1 text-left transition-colors'
+
+// Строка горячей клавиши — седьмая форма, и единственная своя: ловец нажатий
+// не текстовое поле, FieldRow им быть не может. Поэтому ряд собран вручную по
+// образцу FieldRow, а ловец стоит в нём на месте поля ввода и выглядит так же.
+//
+// ⚠️ Кнопки «Подтвердить» рядом больше нет (решение владельца 02.10.2026, то
+// же, что и для полей ввода). Сочетание применяется по уходу из ловца, и только
+// по уходу: Enter, Tab и Esc для него не команды, а такие же ловимые клавиши,
+// как любая другая, — разбор нажатий перенесён из старого ShortcutInput без
+// изменений, вместе с этим его свойством. Вместе с кнопкой ушло состояние
+// activeAction: оно существовало только затем, чтобы откатывать
+// НЕподтверждённую правку в остальных восьми строках, а неподтверждённых
+// правок больше не бывает.
+const ShortcutRow: React.FC<{
+  icon: typeof AppWindow
+  label: string
   value: string
   action: string
   patchAppConfig: (value: Partial<AppConfig>) => Promise<void>
-  activeAction: string | null
-  setActiveAction: (action: string) => void
-}> = (props) => {
+}> = ({ icon: Icon, label, value, action, patchAppConfig }) => {
   const { t } = useTranslation()
-  const { value, action, patchAppConfig, activeAction, setActiveAction } = props
-  const [inputValue, setInputValue] = useState(value)
-  const [isFocused, setIsFocused] = useState(false)
-  const displayKeys = inputValue.split('+').filter(Boolean)
+  const [draft, setDraft] = useState(value)
+  const [busy, setBusy] = useState(false)
+  const [focused, setFocused] = useState(false)
+  const displayKeys = draft.split('+').filter(Boolean)
 
   useEffect(() => {
-    setInputValue(value)
+    setDraft(value)
   }, [value])
 
-  useEffect(() => {
-    if (activeAction && activeAction !== action && inputValue !== value) {
-      setInputValue(value)
+  // ⚠️ Откат при отказе обязателен: без кнопки «Подтвердить» строка — это и
+  // есть единственное свидетельство того, какое сочетание работает. Оставив на
+  // виду незарегистрированное, мы бы показывали человеку клавишу, которой нет.
+  const commit = async (): Promise<void> => {
+    if (draft === value) return
+    setBusy(true)
+    try {
+      if (await registerShortcut(value, draft, action)) {
+        await patchAppConfig({ [action]: draft })
+        window.electron.ipcRenderer.send('updateTrayMenu')
+      } else {
+        setDraft(value)
+        toast.error(t('settings.shortcuts.registerFailed'))
+      }
+    } catch (e) {
+      setDraft(value)
+      toast.error(`${t('settings.shortcuts.registerFailedWithError')}${e}`)
+    } finally {
+      setBusy(false)
     }
-  }, [activeAction, action, inputValue, value])
+  }
 
   const parseShortcut = (
     event: KeyboardEvent<HTMLElement>,
@@ -235,55 +262,52 @@ const ShortcutInput: React.FC<{
       setKey(`${newValue}${newValue.length > 0 && code.length > 0 ? '+' : ''}${code}`)
     }
   }
+
   return (
-    <>
-      {inputValue !== value && (
-        <Button
-          className="mr-2"
-          size="sm"
-          onClick={async () => {
-            try {
-              if (await registerShortcut(value, inputValue, action)) {
-                await patchAppConfig({ [action]: inputValue })
-                window.electron.ipcRenderer.send('updateTrayMenu')
-              } else {
-                toast.error(t('settings.shortcuts.registerFailed'))
-              }
-            } catch (e) {
-              toast.error(`${t('settings.shortcuts.registerFailedWithError')}${e}`)
-            }
-          }}
-        >
-          {t('settings.shortcuts.confirm')}
-        </Button>
-      )}
-      <Button
+    <div className={ROW}>
+      <Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+      <span className="min-w-0 flex-1 overflow-hidden text-sm text-foreground [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2]">
+        {label}
+      </span>
+      {busy && <Spinner className="size-3.5 shrink-0 text-muted-foreground" />}
+      {/* ⚠️ Кольцо фокуса здесь на состоянии, а не на focus-visible: ловец
+          берут и мышью, и кольцо — единственный признак того, что он уже
+          слушает клавиши. Кольцо именно ring-inset: карточка группы обрезает
+          содержимое, и кольцо с отступом срезалось бы её краем у первой и
+          последней строки. То же правило, что в shell/list-group.
+          ⚠️ Ширина ограничена, а подсказка обрезается: в окне 420px (минимум,
+          src/main/index.ts:693) полный текст подсказки съел бы всю строку. */}
+      <button
         type="button"
-        variant="outline"
-        size="sm"
-        className={`w-[calc(100%-72px)] h-8 justify-start gap-1 font-normal ${isFocused ? 'ring-2 ring-ring/50 ring-offset-2 ring-offset-background' : ''}`}
+        aria-label={`${label}: ${draft || t('settings.shortcuts.clickToInput')}`}
+        title={t('settings.shortcuts.clickToInput')}
+        className={cn(
+          'flex h-[26px] max-w-[46%] shrink-0 cursor-pointer items-center justify-end gap-1',
+          'overflow-hidden rounded-md bg-secondary px-2 text-sm outline-none',
+          focused && 'ring-2 ring-inset ring-primary'
+        )}
         onKeyDown={(e: KeyboardEvent<HTMLButtonElement>): void => {
-          parseShortcut(e, setInputValue)
+          parseShortcut(e, setDraft)
         }}
-        onFocus={() => {
-          setIsFocused(true)
-          setActiveAction(action)
+        onFocus={() => setFocused(true)}
+        onBlur={() => {
+          setFocused(false)
+          void commit()
         }}
-        onBlur={() => setIsFocused(false)}
       >
         {displayKeys.length > 0 ? (
           <KbdGroup>
-            {displayKeys.map((key, index) => (
-              <Kbd key={`${key}-${index}`}>{key}</Kbd>
+            {displayKeys.map((k, index) => (
+              <Kbd key={`${k}-${index}`}>{k}</Kbd>
             ))}
           </KbdGroup>
         ) : (
-          <span className="text-muted-foreground text-sm">
+          <span className="min-w-0 truncate text-xs text-muted-foreground">
             {t('settings.shortcuts.clickToInput')}
           </span>
         )}
-      </Button>
-    </>
+      </button>
+    </div>
   )
 }
 

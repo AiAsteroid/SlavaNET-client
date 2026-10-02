@@ -1,4 +1,5 @@
 import BasePage from '@renderer/components/base/base-page'
+import { listScroll } from '@renderer/components/base/nav-spacer'
 import RuleItem from '@renderer/components/rules/rule-item'
 import EditRulesModal from '@renderer/components/profiles/edit-rules-modal'
 import { Virtuoso } from 'react-virtuoso'
@@ -34,7 +35,9 @@ const Rules: React.FC = () => {
   }, [rules, filter])
 
   return (
+    // scrolls={false}: прокрутка своя, внутри Virtuoso — см. base-page.tsx.
     <BasePage
+      scrolls={false}
       title={t('pages.rules.title')}
       header={
         <>
@@ -67,7 +70,7 @@ const Rules: React.FC = () => {
           onClose={() => setShowRulesEditor(false)}
         />
       )}
-      <div className="sticky top-0 z-40">
+      <div className="shrink-0">
         <div className="flex px-2 pb-2">
           <Input
             className="h-8 text-sm"
@@ -78,8 +81,9 @@ const Rules: React.FC = () => {
         </div>
         <Separator className="mx-2"/>
       </div>
-      <div className="h-full mt-px">
+      <div className="mt-px min-h-0 flex-1">
         <Virtuoso
+          {...listScroll}
           data={filteredRules}
           itemContent={(i, rule) => (
             <RuleItem

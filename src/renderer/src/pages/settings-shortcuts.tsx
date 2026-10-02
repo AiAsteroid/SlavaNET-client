@@ -11,7 +11,7 @@ const SettingsSection: React.FC = () => {
   const { t } = useTranslation()
   return (
     <BasePage title={t('settings.shortcuts.title')}>
-      <div className="pt-1">
+      <div className="px-4 pt-1">
         <ShortcutConfig />
       </div>
     </BasePage>

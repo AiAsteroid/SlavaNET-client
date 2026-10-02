@@ -45,7 +45,10 @@ export const Group: React.FC<{ title?: string; children: React.ReactNode }> = ({
 // строкой подписи: разъехавшись на пару пикселей, формы в одной карточке сразу
 // читаются как собранные из разных мест.
 const SHELL = 'flex w-full items-center gap-2.5 px-3 text-left transition-colors'
-const H_ONE = 'h-10'
+// ⚠️ min-h, а не h: у части настроек подписи длинные, и при жёсткой высоте они
+// обрезались посередине слова — вместе с пояснением под ними. Пусть строка
+// лучше вырастет, чем соврёт о том, что в ней написано.
+const H_ONE = 'min-h-10 py-1'
 const H_TWO = 'min-h-[52px] py-1.5'
 // ⚠️ Кольцо фокуса именно ring-inset: карточка группы обрезает содержимое
 // (overflow-hidden), и обычное системное кольцо с отступом 2px у первой и
@@ -71,9 +74,12 @@ const Body: React.FC<BodyProps> = ({ icon: Icon, label, sub, danger }) => (
       />
     )}
     <span className="min-w-0 flex-1">
+      {/* Подпись переносится, но не больше двух строк: длиннее — это уже не
+          подпись, а пояснение, и ему место в sub. Пояснение остаётся в одну
+          строку: двухэтажные пояснения превращают список в сплошной текст. */}
       <span
         className={cn(
-          'block truncate text-sm',
+          'block text-sm [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden',
           danger ? 'text-destructive' : 'text-foreground'
         )}
       >

@@ -5,6 +5,7 @@ import { Button } from '@renderer/components/ui/button'
 import { Card, CardContent } from '@renderer/components/ui/card'
 import { Spinner } from '@renderer/components/ui/spinner'
 import BasePage from '@renderer/components/base/base-page'
+import { listScroll } from '@renderer/components/base/nav-spacer'
 import { useAppConfig } from '@renderer/hooks/use-app-config'
 import {
   getImageDataURL,
@@ -538,7 +539,9 @@ const Proxies: React.FC = () => {
   )
 
   return (
+    // scrolls={false}: прокрутка своя, внутри GroupedVirtuoso — см. base-page.tsx.
     <BasePage
+      scrolls={false}
       title={t('pages.proxies.title')}
       header={
         <>
@@ -569,7 +572,7 @@ const Proxies: React.FC = () => {
     >
       {isSettingModalOpen && <ProxySettingModal onClose={() => setIsSettingModalOpen(false)} />}
       {mode === 'direct' ? (
-        <div className="h-full w-full flex justify-center items-center">
+        <div className="flex min-h-0 w-full flex-1 items-center justify-center">
           <div className="flex flex-col items-center gap-3">
             <div className="rounded-full bg-muted p-6">
               <ChevronsRight className="text-muted-foreground text-5xl" />
@@ -578,9 +581,10 @@ const Proxies: React.FC = () => {
           </div>
         </div>
       ) : (
-        <div ref={scrollContainerRef} className="h-full">
+        <div ref={scrollContainerRef} className="min-h-0 flex-1">
           <GroupedVirtuoso
             ref={virtuosoRef}
+            {...listScroll}
             groupCounts={groupCounts}
             groupContent={groupContent}
             itemContent={itemContent}

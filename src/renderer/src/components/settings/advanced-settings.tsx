@@ -1,8 +1,21 @@
-import React, { useState, useEffect } from 'react'
+import React, { useEffect, useState } from 'react'
 import { toast } from 'sonner'
-import SettingCard from '../base/base-setting-card'
-import SettingItem from '../base/base-setting-item'
-import { Button } from '@renderer/components/ui/button'
+import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
+import {
+  Copy,
+  Cpu,
+  Feather,
+  FolderTree,
+  Globe,
+  Minimize2,
+  RefreshCw,
+  ScanSearch,
+  Settings as SettingsIcon,
+  Terminal,
+  Timer,
+  WifiOff
+} from 'lucide-react'
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -10,35 +23,24 @@ import {
   DropdownMenuTrigger
 } from '@renderer/components/ui/dropdown-menu'
 import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupInput,
-  InputGroupText
-} from '@renderer/components/ui/input-group'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from '@renderer/components/ui/select'
-import { Switch } from '@renderer/components/ui/switch'
-import { Tabs, TabsList, TabsTrigger } from '@renderer/components/ui/tabs'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
+  FieldRow,
+  Group,
+  Row,
+  SegmentRow,
+  SelectRow,
+  SwitchRow
+} from '@renderer/components/shell/list-group'
+import EditableList from '../base/base-list-editor'
 import { useAppConfig } from '@renderer/hooks/use-app-config'
+import { platform } from '@renderer/utils/init'
 import {
   copyEnv,
+  mihomoHotReloadConfig,
   patchControledMihomoConfig,
   restartCore,
   startNetworkDetection,
-  stopNetworkDetection,
-  mihomoHotReloadConfig
+  stopNetworkDetection
 } from '@renderer/utils/ipc'
-import { platform } from '@renderer/utils/init'
-import { ChevronDownIcon, Copy, MessageCircleQuestionMark, Settings } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
-import EditableList from '../base/base-list-editor'
-import { useTranslation } from 'react-i18next'
 
 const emptyArray: string[] = []
 type EnvType = 'bash' | 'cmd' | 'powershell' | 'nushell'
@@ -54,6 +56,25 @@ interface AdvancedSettingsProps {
   showHiddenSettings: boolean
 }
 
+// Расширенные настройки на общем наборе строк (src/components/shell/list-group).
+// Раньше это был один свёрнутый аккордеон из тринадцати строк подряд:
+// облегчённый режим, ядро, проверка сети и два списка лежали в одной куче, без
+// заголовков, а половина пояснений была спрятана под вопросики.
+//
+// Теперь шесть групп по смыслу, и все тринадцать настроек на месте:
+// «Приложение» (3), «Настройки ядра» (5), «Подключение» (2), по группе на
+// каждый список-редактор (2) и служебная группа с форматом переменных
+// окружения (1).
+//
+// ⚠️ Заголовки групп взяты из СУЩЕСТВУЮЩИХ ключей перевода: локали правит
+// другой человек, новых ключей здесь не появляется. Поэтому «Настройки ядра» —
+// это settings.actions.mihomoSettings, а служебная группа идёт под
+// pages.settings.groupMaintenance.
+//
+// ⚠️ Кнопок «Подтвердить» больше нет (решение владельца 02.10.2026). Их было
+// три, и каждая появлялась только при изменении значения. Поле применяет
+// правку по уходу и по Enter (FieldRow), а списки — сразу по правке: иначе
+// настройка просто перестала бы сохраняться.
 const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
   const { showHiddenSettings } = props
   const { t } = useTranslation()
@@ -77,15 +98,26 @@ const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
 
   const pauseSSIDArray = pauseSSID ?? emptyArray
 
+  // Черновики списков. Они нужны не для кнопки, а для самого редактора:
+  // patchAppConfig уходит в главный процесс и возвращается через SWR, и список,
+  // показанный прямо из конфига, терял бы символы при быстром наборе.
   const [pauseSSIDInput, setPauseSSIDInput] = useState(pauseSSIDArray)
-
   const [bypass, setBypass] = useState(networkDetectionBypass)
-  const [interval, setInterval] = useState(networkDetectionInterval)
+
   const envTypeValue = envType as EnvType[]
   const envTypeLabels = envOptions
     .filter((option) => envTypeValue.includes(option.value))
     .map((option) => option.label)
   const envTypeLabel = envTypeLabels.length ? envTypeLabels.join(', ') : '-'
+
+  const priorityOptions: Array<{ value: Priority; label: string }> = [
+    { value: 'PRIORITY_HIGHEST', label: t('settings.advanced.realtime') },
+    { value: 'PRIORITY_HIGH', label: t('settings.advanced.high') },
+    { value: 'PRIORITY_ABOVE_NORMAL', label: t('settings.advanced.aboveNormal') },
+    { value: 'PRIORITY_NORMAL', label: t('settings.advanced.normal') },
+    { value: 'PRIORITY_BELOW_NORMAL', label: t('settings.advanced.belowNormal') },
+    { value: 'PRIORITY_LOW', label: t('settings.advanced.low') }
+  ]
 
   useEffect(() => {
     setPauseSSIDInput(pauseSSIDArray)
@@ -106,90 +138,210 @@ const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
   }
 
   return (
-    <SettingCard title={t('settings.advanced.moreSettings')}>
-      <SettingItem
-        title={t('settings.advanced.autoEnterLightMode')}
-        actions={
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button size="icon-sm" variant="ghost">
-                <MessageCircleQuestionMark className="text-lg" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>{t('settings.advanced.autoEnterLightModeHelp')}</TooltipContent>
-          </Tooltip>
-        }
-        divider
-      >
-        <Switch
+    <>
+      <Group title={t('pages.settings.groupApp')}>
+        <SwitchRow
+          icon={Feather}
+          label={t('settings.advanced.autoEnterLightMode')}
+          sub={t('settings.advanced.autoEnterLightModeHelp')}
           checked={autoLightweight}
           onCheckedChange={(value) => {
             patchAppConfig({ autoLightweight: value })
           }}
         />
-      </SettingItem>
-      {autoLightweight && (
-        <>
-          <SettingItem title={t('settings.advanced.lightModeBehavior')} divider>
-            <Tabs
+        {autoLightweight && (
+          <>
+            <SegmentRow
+              icon={Minimize2}
+              label={t('settings.advanced.lightModeBehavior')}
               value={autoLightweightMode}
-              onValueChange={(value) => {
-                patchAppConfig({ autoLightweightMode: value as 'core' | 'tray' })
+              options={[
+                { value: 'core', label: t('settings.advanced.keepCoreOnly') },
+                { value: 'tray', label: t('settings.advanced.closeRendererOnly') }
+              ]}
+              onChange={(value) => {
+                patchAppConfig({ autoLightweightMode: value })
                 if (value === 'core') {
                   patchAppConfig({ autoLightweightDelay: Math.max(autoLightweightDelay, 5) })
                 }
               }}
-            >
-              <TabsList>
-                <TabsTrigger value="core">{t('settings.advanced.keepCoreOnly')}</TabsTrigger>
-                <TabsTrigger value="tray">{t('settings.advanced.closeRendererOnly')}</TabsTrigger>
-              </TabsList>
-            </Tabs>
-          </SettingItem>
-          <SettingItem title={t('settings.advanced.autoEnterLightModeDelay')} divider>
-            <InputGroup className="w-37.5 h-8">
-              <InputGroupInput
-                type="number"
-                value={autoLightweightDelay.toString()}
-                onChange={async (event) => {
-                  let num = parseInt(event.target.value)
-                  if (isNaN(num)) num = 0
-                  const minDelay = autoLightweightMode === 'core' ? 5 : 0
-                  if (num < minDelay) num = minDelay
-                  await patchAppConfig({ autoLightweightDelay: num })
-                }}
-              />
-              <InputGroupAddon align="inline-end">
-                <InputGroupText>{t('settings.advanced.seconds')}</InputGroupText>
-              </InputGroupAddon>
-            </InputGroup>
-          </SettingItem>
-        </>
+            />
+            {/* Единица измерения раньше жила отдельной плашкой внутри поля;
+                теперь она в подписи — ключ перевода тот же. */}
+            <FieldRow
+              icon={Timer}
+              label={`${t('settings.advanced.autoEnterLightModeDelay')}, ${t('settings.advanced.seconds')}`}
+              value={autoLightweightDelay.toString()}
+              width={72}
+              inputMode="numeric"
+              onCommit={async (next) => {
+                let num = parseInt(next)
+                if (isNaN(num)) num = 0
+                const minDelay = autoLightweightMode === 'core' ? 5 : 0
+                if (num < minDelay) num = minDelay
+                await patchAppConfig({ autoLightweightDelay: num })
+              }}
+            />
+          </>
+        )}
+      </Group>
+
+      <Group title={t('settings.actions.mihomoSettings')}>
+        {platform === 'win32' && (
+          <SelectRow
+            icon={Cpu}
+            label={t('settings.advanced.corePriority')}
+            value={mihomoCpuPriority}
+            options={priorityOptions}
+            onChange={async (value) => {
+              try {
+                await patchAppConfig({
+                  mihomoCpuPriority: value
+                })
+                await restartCore()
+              } catch (e) {
+                toast.error(`${e}`)
+              }
+            }}
+          />
+        )}
+        <SwitchRow
+          icon={Globe}
+          label={t('settings.advanced.takeOverDNS')}
+          checked={controlDns}
+          onCheckedChange={async (value) => {
+            try {
+              await patchAppConfig({ controlDns: value })
+              await patchControledMihomoConfig({})
+              await mihomoHotReloadConfig()
+            } catch (e) {
+              toast.error(`${e}`)
+            }
+          }}
+          action={{
+            icon: SettingsIcon,
+            label: t('pages.dns.title'),
+            onClick: () => navigate('/dns')
+          }}
+        />
+        <SwitchRow
+          icon={ScanSearch}
+          label={t('settings.advanced.takeOverSniffer')}
+          checked={controlSniff}
+          onCheckedChange={async (value) => {
+            try {
+              await patchAppConfig({ controlSniff: value })
+              await patchControledMihomoConfig({})
+              await mihomoHotReloadConfig()
+            } catch (e) {
+              toast.error(`${e}`)
+            }
+          }}
+          action={{
+            icon: SettingsIcon,
+            label: t('pages.sniffer.title'),
+            onClick: () => navigate('/sniffer')
+          }}
+        />
+        <SwitchRow
+          icon={RefreshCw}
+          label={t('settings.advanced.useHotReloadProfile')}
+          sub={t('settings.advanced.useHotReloadProfileHelp')}
+          checked={useHotReloadProfile}
+          onCheckedChange={(v) => {
+            patchAppConfig({ useHotReloadProfile: v })
+          }}
+        />
+        <SwitchRow
+          icon={FolderTree}
+          label={t('profile.separateWorkDir')}
+          sub={t('profile.separateWorkDirHelp')}
+          checked={diffWorkDir}
+          onCheckedChange={(v) => {
+            patchAppConfig({ diffWorkDir: v })
+          }}
+        />
+      </Group>
+
+      <Group title={t('pages.settings.groupConnection')}>
+        <SwitchRow
+          icon={WifiOff}
+          label={t('settings.advanced.stopCoreOnDisconnect')}
+          sub={t('settings.advanced.stopCoreOnDisconnectHelp')}
+          checked={networkDetection}
+          onCheckedChange={(value) => {
+            patchAppConfig({ networkDetection: value })
+            if (value) {
+              startNetworkDetection()
+            } else {
+              stopNetworkDetection()
+            }
+          }}
+        />
+        {networkDetection && (
+          <FieldRow
+            icon={Timer}
+            label={`${t('settings.advanced.disconnectDetectInterval')}, ${t('settings.advanced.seconds')}`}
+            value={networkDetectionInterval.toString()}
+            width={72}
+            inputMode="numeric"
+            onCommit={async (next) => {
+              let num = parseInt(next)
+              // Минимум был у самого поля (min=1): интервал в ноль секунд
+              // крутил бы проверку сети без остановки.
+              if (isNaN(num) || num < 1) num = 1
+              await patchAppConfig({ networkDetectionInterval: num })
+              await startNetworkDetection()
+            }}
+          />
+        )}
+      </Group>
+
+      {networkDetection && (
+        <Group title={t('settings.advanced.bypassDetectInterfaces')}>
+          <div className="px-3 py-2">
+            <EditableList
+              items={bypass}
+              divider={false}
+              onChange={async (list) => {
+                const next = list as string[]
+                setBypass(next)
+                await patchAppConfig({ networkDetectionBypass: next })
+                await startNetworkDetection()
+              }}
+            />
+          </div>
+        </Group>
       )}
+
+      <Group title={t('settings.advanced.directOnSpecificWifi')}>
+        <div className="px-3 py-2">
+          <EditableList
+            items={pauseSSIDInput}
+            divider={false}
+            onChange={(list) => {
+              const next = list as string[]
+              setPauseSSIDInput(next)
+              patchAppConfig({ pauseSSID: next })
+            }}
+          />
+        </div>
+      </Group>
+
       {showHiddenSettings && (
-        <SettingItem
-          title={t('settings.advanced.copyEnvType')}
-          actions={envType.map((type) => (
-            <Button
-              key={type}
-              title={type}
-              size="icon-sm"
-              variant="ghost"
-              onClick={() => copyEnv(type)}
-            >
-              <Copy className="text-lg" />
-            </Button>
-          ))}
-          divider
-        >
+        <Group title={t('pages.settings.groupMaintenance')}>
+          {/* Выбор форматов остался множественным: Row подставляется Radix
+              через asChild, поэтому список с галочками работает как раньше. */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="w-37.5 justify-between">
-                <span className="truncate">{envTypeLabel}</span>
-                <ChevronDownIcon className="size-4 opacity-50" />
-              </Button>
+              <Row
+                icon={Terminal}
+                label={t('settings.advanced.copyEnvType')}
+                value={envTypeLabel}
+                trailing="picker"
+              />
             </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-37.5">
+            <DropdownMenuContent align="end">
               {envOptions.map((option) => (
                 <DropdownMenuCheckboxItem
                   key={option.value}
@@ -201,218 +353,20 @@ const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
-        </SettingItem>
+          {/* Копировать раньше предлагал значок рядом с подписью: по значку
+              24×24 не видно, что именно он скопирует. Теперь на каждый
+              выбранный формат своя строка. */}
+          {envTypeValue.map((type) => (
+            <Row
+              key={type}
+              icon={Copy}
+              label={envOptions.find((option) => option.value === type)?.label ?? type}
+              onClick={() => copyEnv(type)}
+            />
+          ))}
+        </Group>
       )}
-      {platform === 'win32' && (
-        <SettingItem title={t('settings.advanced.corePriority')} divider>
-          <Select
-            value={mihomoCpuPriority}
-            onValueChange={async (value) => {
-              try {
-                await patchAppConfig({
-                  mihomoCpuPriority: value as Priority
-                })
-                await restartCore()
-              } catch (e) {
-                toast.error(`${e}`)
-              }
-            }}
-          >
-            <SelectTrigger size="sm" className="w-37.5">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="PRIORITY_HIGHEST">{t('settings.advanced.realtime')}</SelectItem>
-              <SelectItem value="PRIORITY_HIGH">{t('settings.advanced.high')}</SelectItem>
-              <SelectItem value="PRIORITY_ABOVE_NORMAL">
-                {t('settings.advanced.aboveNormal')}
-              </SelectItem>
-              <SelectItem value="PRIORITY_NORMAL">{t('settings.advanced.normal')}</SelectItem>
-              <SelectItem value="PRIORITY_BELOW_NORMAL">
-                {t('settings.advanced.belowNormal')}
-              </SelectItem>
-              <SelectItem value="PRIORITY_LOW">{t('settings.advanced.low')}</SelectItem>
-            </SelectContent>
-          </Select>
-        </SettingItem>
-      )}
-      <SettingItem
-        title={t('settings.advanced.takeOverDNS')}
-        actions={
-          <Button size="icon-sm" variant="ghost" onClick={() => navigate('/dns')}>
-            <Settings className="text-lg" />
-          </Button>
-        }
-        divider
-      >
-        <Switch
-          checked={controlDns}
-          onCheckedChange={async (value) => {
-            try {
-              await patchAppConfig({ controlDns: value })
-              await patchControledMihomoConfig({})
-              await mihomoHotReloadConfig()
-            } catch (e) {
-              toast.error(`${e}`)
-            }
-          }}
-        />
-      </SettingItem>
-      <SettingItem
-        title={t('settings.advanced.takeOverSniffer')}
-        actions={
-          <Button size="icon-sm" variant="ghost" onClick={() => navigate('/sniffer')}>
-            <Settings className="text-lg" />
-          </Button>
-        }
-        divider
-      >
-        <Switch
-          checked={controlSniff}
-          onCheckedChange={async (value) => {
-            try {
-              await patchAppConfig({ controlSniff: value })
-              await patchControledMihomoConfig({})
-              await mihomoHotReloadConfig()
-            } catch (e) {
-              toast.error(`${e}`)
-            }
-          }}
-        />
-      </SettingItem>
-      <SettingItem
-        title={t('profile.separateWorkDir')}
-        actions={
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button size="icon-sm" variant="ghost">
-                <MessageCircleQuestionMark className="text-lg" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>{t('profile.separateWorkDirHelp')}</TooltipContent>
-          </Tooltip>
-        }
-        divider
-      >
-        <Switch
-          checked={diffWorkDir}
-          onCheckedChange={(v) => {
-            patchAppConfig({ diffWorkDir: v })
-          }}
-        />
-      </SettingItem>
-      <SettingItem
-        title={t('settings.advanced.useHotReloadProfile')}
-        actions={
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button size="icon-sm" variant="ghost">
-                <MessageCircleQuestionMark className="text-lg" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>{t('settings.advanced.useHotReloadProfileHelp')}</TooltipContent>
-          </Tooltip>
-        }
-        divider
-      >
-        <Switch
-          checked={useHotReloadProfile}
-          onCheckedChange={(v) => {
-            patchAppConfig({ useHotReloadProfile: v })
-          }}
-        />
-      </SettingItem>
-      <SettingItem
-        title={t('settings.advanced.stopCoreOnDisconnect')}
-        actions={
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button size="icon-sm" variant="ghost">
-                <MessageCircleQuestionMark className="text-lg" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>{t('settings.advanced.stopCoreOnDisconnectHelp')}</TooltipContent>
-          </Tooltip>
-        }
-        divider
-      >
-        <Switch
-          checked={networkDetection}
-          onCheckedChange={(value) => {
-            patchAppConfig({ networkDetection: value })
-            if (value) {
-              startNetworkDetection()
-            } else {
-              stopNetworkDetection()
-            }
-          }}
-        />
-      </SettingItem>
-      {networkDetection && (
-        <>
-          <SettingItem title={t('settings.advanced.disconnectDetectInterval')} divider>
-            <div className="flex items-center">
-              {interval !== networkDetectionInterval && (
-                <Button
-                  size="sm"
-                  className="mr-2"
-                  onClick={async () => {
-                    await patchAppConfig({ networkDetectionInterval: interval })
-                    await startNetworkDetection()
-                  }}
-                >
-                  {t('common.confirm')}
-                </Button>
-              )}
-              <InputGroup className="w-37.5 h-8">
-                <InputGroupInput
-                  type="number"
-                  value={interval.toString()}
-                  min={1}
-                  onChange={(event) => {
-                    setInterval(parseInt(event.target.value))
-                  }}
-                />
-                <InputGroupAddon align="inline-end">
-                  <InputGroupText>{t('settings.advanced.seconds')}</InputGroupText>
-                </InputGroupAddon>
-              </InputGroup>
-            </div>
-          </SettingItem>
-          <SettingItem title={t('settings.advanced.bypassDetectInterfaces')}>
-            {bypass.length != networkDetectionBypass.length && (
-              <Button
-                size="sm"
-                onClick={async () => {
-                  await patchAppConfig({ networkDetectionBypass: bypass })
-                  await startNetworkDetection()
-                }}
-              >
-                {t('common.confirm')}
-              </Button>
-            )}
-          </SettingItem>
-          <EditableList items={bypass} onChange={(list) => setBypass(list as string[])} />
-        </>
-      )}
-      <SettingItem title={t('settings.advanced.directOnSpecificWifi')}>
-        {pauseSSIDInput.join('') !== pauseSSIDArray.join('') && (
-          <Button
-            size="sm"
-            onClick={() => {
-              patchAppConfig({ pauseSSID: pauseSSIDInput })
-            }}
-          >
-            {t('common.confirm')}
-          </Button>
-        )}
-      </SettingItem>
-      <EditableList
-        items={pauseSSIDInput}
-        onChange={(list) => setPauseSSIDInput(list as string[])}
-        divider={false}
-      />
-    </SettingCard>
+    </>
   )
 }
 
